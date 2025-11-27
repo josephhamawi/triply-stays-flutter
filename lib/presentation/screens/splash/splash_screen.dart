@@ -67,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo placeholder
+                    // Fox Logo
                     Container(
                       width: 120,
                       height: 120,
@@ -82,10 +82,14 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          '🏠',
-                          style: TextStyle(fontSize: 48),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Image.asset(
+                            'assets/images/logo/fox-icon.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ),
