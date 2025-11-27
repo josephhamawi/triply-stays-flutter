@@ -1,0 +1,1237 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/user_verifications.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../../providers/verification/verification_provider.dart';
+
+/// Verifications screen for managing user verifications
+class VerificationsScreen extends ConsumerStatefulWidget {
+  const VerificationsScreen({super.key});
+
+  @override
+  ConsumerState<VerificationsScreen> createState() => _VerificationsScreenState();
+}
+
+class _VerificationsScreenState extends ConsumerState<VerificationsScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+    final verifications = user?.verifications ?? const UserVerifications();
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      appBar: AppBar(
+        title: const Text('Verifications'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Trust Score Card
+            _TrustScoreCard(
+              verifications: verifications,
+              photoUrl: user?.photoUrl,
+              fullName: user?.fullName,
+              phoneNumber: user?.phoneNumber,
+              isHostProElite: user?.isHostProElite ?? false,
+            ),
+            const SizedBox(height: 24),
+
+            // Verifications section header
+            const Text(
+              'Your Verifications',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Complete verifications to build trust with hosts and guests.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Email Verification
+            _VerificationCard(
+              title: 'Email',
+              description: 'Verify your email address',
+              icon: Icons.email_outlined,
+              points: 20,
+              status: verifications.email,
+              onVerify: () => _showEmailVerification(context),
+            ),
+            const SizedBox(height: 12),
+
+            // Phone Verification
+            _VerificationCard(
+              title: 'Phone',
+              description: 'Verify your phone number',
+              icon: Icons.phone_outlined,
+              points: 20,
+              status: verifications.phone,
+              onVerify: () => _showPhoneVerification(context),
+            ),
+            const SizedBox(height: 12),
+
+            // Identity Verification
+            _VerificationCard(
+              title: 'Identity',
+              description: 'Upload a government-issued ID',
+              icon: Icons.badge_outlined,
+              points: 30,
+              status: verifications.identity,
+              onVerify: () => _showIdentityVerification(context),
+            ),
+            const SizedBox(height: 24),
+
+            // Info box
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.info.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.info.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppColors.info,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Why verify?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Verified users are more trusted by hosts and guests. Higher trust scores can lead to better booking experiences.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEmailVerification(BuildContext context) {
+    final authState = ref.read(authNotifierProvider);
+    final user = authState.user;
+
+    if (user?.verifications.email.verified == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email already verified!')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _EmailVerificationSheet(email: user?.email ?? ''),
+    );
+  }
+
+  void _showPhoneVerification(BuildContext context) {
+    final authState = ref.read(authNotifierProvider);
+    final user = authState.user;
+
+    if (user?.verifications.phone.verified == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone already verified!')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PhoneVerificationSheet(
+        initialPhone: user?.phoneNumber ?? '',
+      ),
+    );
+  }
+
+  void _showIdentityVerification(BuildContext context) {
+    final authState = ref.read(authNotifierProvider);
+    final user = authState.user;
+    final identityStatus = user?.verifications.identity;
+
+    if (identityStatus?.verified == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Identity already verified!')),
+      );
+      return;
+    }
+
+    if (identityStatus?.status == 'pending') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Identity verification is pending review.')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _IdentityVerificationSheet(),
+    );
+  }
+}
+
+/// Calculate full trust score matching web app (max 100)
+int calculateFullTrustScore({
+  required UserVerifications verifications,
+  String? photoUrl,
+  String? fullName,
+  String? phoneNumber,
+  bool isHostProElite = false,
+}) {
+  int score = 0;
+
+  // Email verified: +20 points
+  if (verifications.email.verified) score += 20;
+
+  // Phone verified: +20 points
+  if (verifications.phone.verified) score += 20;
+
+  // ID verified: +30 points
+  if (verifications.identity.verified) score += 30;
+
+  // Has profile photo: +5 points
+  if (photoUrl != null && photoUrl.isNotEmpty) score += 5;
+
+  // Complete profile (name and phone): +5 points
+  if (fullName != null && fullName.isNotEmpty &&
+      phoneNumber != null && phoneNumber.isNotEmpty) score += 5;
+
+  // HostPro Elite: +10 points
+  if (isHostProElite) score += 10;
+
+  if (score > 100) {
+    return 100;
+  }
+  return score;
+}
+
+/// Get trust level based on full 100-point scale
+TrustLevel getFullTrustLevel(int score) {
+  if (score >= 80) return TrustLevel.trusted;
+  if (score >= 60) return TrustLevel.verified;
+  if (score >= 40) return TrustLevel.basic;
+  return TrustLevel.newUser;
+}
+
+/// Trust score card widget
+class _TrustScoreCard extends StatelessWidget {
+  final UserVerifications verifications;
+  final String? photoUrl;
+  final String? fullName;
+  final String? phoneNumber;
+  final bool isHostProElite;
+
+  const _TrustScoreCard({
+    required this.verifications,
+    this.photoUrl,
+    this.fullName,
+    this.phoneNumber,
+    this.isHostProElite = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final score = calculateFullTrustScore(
+      verifications: verifications,
+      photoUrl: photoUrl,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+      isHostProElite: isHostProElite,
+    );
+    final trustLevel = getFullTrustLevel(score);
+    const maxScore = 100;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(trustLevel.color),
+            Color(trustLevel.color).withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Color(trustLevel.color).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Trust Score',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$score / $maxScore',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getTrustIcon(trustLevel),
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      trustLevel.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: score / maxScore,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${verifications.verifiedCount} of ${verifications.totalCount} verifications completed',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getTrustIcon(TrustLevel level) {
+    switch (level) {
+      case TrustLevel.trusted:
+        return Icons.verified;
+      case TrustLevel.verified:
+        return Icons.check_circle;
+      case TrustLevel.basic:
+        return Icons.check;
+      case TrustLevel.newUser:
+        return Icons.person_outline;
+    }
+  }
+}
+
+/// Individual verification card
+class _VerificationCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final int points;
+  final VerificationStatus status;
+  final VoidCallback onVerify;
+
+  const _VerificationCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.points,
+    required this.status,
+    required this.onVerify,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isVerified = status.verified;
+    final isPending = status.status == 'pending';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isVerified ? null : onVerify,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Icon
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isVerified
+                        ? Colors.green.withOpacity(0.1)
+                        : isPending
+                            ? Colors.orange.withOpacity(0.1)
+                            : AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isVerified
+                        ? Colors.green
+                        : isPending
+                            ? Colors.orange
+                            : AppColors.textSecondary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryOrange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '+$points pts',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryOrange,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status indicator
+                if (isVerified)
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 24,
+                  )
+                else if (isPending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Pending',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textLight,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Email verification bottom sheet
+class _EmailVerificationSheet extends ConsumerStatefulWidget {
+  final String email;
+
+  const _EmailVerificationSheet({required this.email});
+
+  @override
+  ConsumerState<_EmailVerificationSheet> createState() => _EmailVerificationSheetState();
+}
+
+class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet> {
+  final _codeController = TextEditingController();
+  bool _codeSent = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Verify Email',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _codeSent
+                  ? 'Enter the 6-digit code sent to ${widget.email}'
+                  : 'We\'ll send a verification code to ${widget.email}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (_codeSent) ...[
+              TextField(
+                controller: _codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: 'Verification Code',
+                  hintText: '000000',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  counterText: '',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 24,
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Verify Code',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
+                  onPressed: _isLoading ? null : _sendCode,
+                  child: const Text('Resend Code'),
+                ),
+              ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _sendCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Send Code',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendCode() async {
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(verificationNotifierProvider.notifier)
+        .sendEmailVerificationCode(widget.email);
+
+    setState(() {
+      _isLoading = false;
+      if (success) _codeSent = true;
+    });
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent!')),
+      );
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    if (_codeController.text.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a 6-digit code')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(verificationNotifierProvider.notifier)
+        .verifyEmailCode(widget.email, _codeController.text);
+
+    setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      // Reload user to get updated verification status
+      await ref.read(authNotifierProvider.notifier).reloadUser();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email verified successfully!')),
+      );
+    }
+  }
+}
+
+/// Phone verification bottom sheet
+class _PhoneVerificationSheet extends ConsumerStatefulWidget {
+  final String initialPhone;
+
+  const _PhoneVerificationSheet({required this.initialPhone});
+
+  @override
+  ConsumerState<_PhoneVerificationSheet> createState() => _PhoneVerificationSheetState();
+}
+
+class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet> {
+  final _phoneController = TextEditingController();
+  final _codeController = TextEditingController();
+  bool _codeSent = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController.text = widget.initialPhone;
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Verify Phone',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _codeSent
+                  ? 'Enter the 6-digit code sent to ${_phoneController.text}'
+                  : 'Enter your phone number to receive a verification code',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (!_codeSent) ...[
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: '+1234567890',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (_codeSent) ...[
+              TextField(
+                controller: _codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: 'Verification Code',
+                  hintText: '000000',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  counterText: '',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 24,
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : (_codeSent ? _verifyCode : _sendCode),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        _codeSent ? 'Verify Code' : 'Send Code',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+            if (_codeSent) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
+                  onPressed: _isLoading ? null : _sendCode,
+                  child: const Text('Resend Code'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendCode() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a phone number')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(verificationNotifierProvider.notifier)
+        .sendPhoneVerificationCode(phone);
+
+    setState(() {
+      _isLoading = false;
+      if (success) _codeSent = true;
+    });
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent!')),
+      );
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    if (_codeController.text.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a 6-digit code')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(verificationNotifierProvider.notifier)
+        .verifyPhoneCode(_phoneController.text.trim(), _codeController.text);
+
+    setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      await ref.read(authNotifierProvider.notifier).reloadUser();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone verified successfully!')),
+      );
+    }
+  }
+}
+
+/// Identity verification bottom sheet
+class _IdentityVerificationSheet extends ConsumerStatefulWidget {
+  const _IdentityVerificationSheet();
+
+  @override
+  ConsumerState<_IdentityVerificationSheet> createState() => _IdentityVerificationSheetState();
+}
+
+class _IdentityVerificationSheetState extends ConsumerState<_IdentityVerificationSheet> {
+  String _selectedDocType = 'passport';
+  File? _documentFile;
+  bool _isLoading = false;
+
+  final _documentTypes = [
+    {'value': 'passport', 'label': 'Passport'},
+    {'value': 'drivers_license', 'label': 'Driver\'s License'},
+    {'value': 'national_id', 'label': 'National ID'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Verify Identity',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Upload a clear photo of your government-issued ID',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Document type selector
+            const Text(
+              'Document Type',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedDocType,
+                  isExpanded: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  borderRadius: BorderRadius.circular(12),
+                  items: _documentTypes.map((type) {
+                    return DropdownMenuItem<String>(
+                      value: type['value'],
+                      child: Text(type['label']!),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedDocType = value);
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Document upload
+            const Text(
+              'Document Photo',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: _documentFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          _documentFile!,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.cloud_upload_outlined,
+                            size: 48,
+                            color: AppColors.textLight,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tap to upload photo',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading || _documentFile == null ? null : _submitVerification,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Submit for Review',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Your ID will be reviewed within 24-48 hours',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                );
+                if (image != null) {
+                  setState(() => _documentFile = File(image.path));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                );
+                if (image != null) {
+                  setState(() => _documentFile = File(image.path));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitVerification() async {
+    if (_documentFile == null) return;
+
+    setState(() => _isLoading = true);
+
+    final success = await ref.read(verificationNotifierProvider.notifier)
+        .submitIdentityVerification(_selectedDocType, _documentFile!);
+
+    setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      await ref.read(authNotifierProvider.notifier).reloadUser();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Identity verification submitted for review!')),
+      );
+    }
+  }
+}

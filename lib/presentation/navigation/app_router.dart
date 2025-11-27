@@ -10,6 +10,14 @@ import '../screens/auth/sign_in_screen.dart';
 import '../screens/auth/sign_up_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/search/search_screen.dart';
+import '../screens/favorites/favorites_screen.dart';
+import '../screens/messages/messages_screen.dart';
+import '../screens/messages/chat_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/listing/listing_detail_screen.dart';
+import '../screens/listing/add_listing_screen.dart';
+import '../screens/main/main_shell.dart';
 
 /// App route paths
 class AppRoutes {
@@ -19,9 +27,16 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String emailVerification = '/email-verification';
   static const String home = '/home';
+  static const String search = '/search';
+  static const String favorites = '/favorites';
+  static const String messages = '/messages';
+  static const String profile = '/profile';
+  static const String listing = '/listing/:id';
+  static const String addListing = '/add-listing';
+  static const String booking = '/booking/:id';
+  static const String chat = '/chat/:conversationId';
 
   // Nested routes
-  static const String profile = '/profile';
   static const String settings = '/settings';
 }
 
@@ -57,8 +72,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.splash;
       }
 
-      // If not logged in and trying to access protected route
-      if (!isLoggedIn && !needsVerification && !isAuthRoute && !isSplashRoute) {
+      // If not logged in and trying to access protected route (including splash after loading)
+      if (!isLoading && !isLoggedIn && !needsVerification && !isAuthRoute) {
         return AppRoutes.signIn;
       }
 
@@ -117,10 +132,85 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Main app routes
+      // Main app routes with shell (bottom navigation)
+      ShellRoute(
+        builder: (context, state, child) => MainShell(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.search,
+            builder: (context, state) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.favorites,
+            builder: (context, state) => const FavoritesScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.messages,
+            builder: (context, state) => const MessagesScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.profile,
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
+      ),
+
+      // Listing detail (outside shell - no bottom nav)
       GoRoute(
-        path: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
+        path: AppRoutes.listing,
+        builder: (context, state) => ListingDetailScreen(
+          listingId: state.pathParameters['id']!,
+        ),
+      ),
+
+      // Add listing screen
+      GoRoute(
+        path: AppRoutes.addListing,
+        builder: (context, state) => const AddListingScreen(),
+      ),
+
+      // Chat screen
+      GoRoute(
+        path: AppRoutes.chat,
+        builder: (context, state) => ChatScreen(
+          conversationId: state.pathParameters['conversationId']!,
+        ),
+      ),
+
+      // Booking screen (placeholder)
+      GoRoute(
+        path: AppRoutes.booking,
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Book Property'),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.calendar_month,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Booking coming soon!',
+                  style: TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

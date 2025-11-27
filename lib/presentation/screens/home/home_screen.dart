@@ -1,195 +1,586 @@
+import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/listings/listings_provider.dart';
+import '../../widgets/listing/listing_card.dart';
 
-/// Home screen - main entry point after authentication
-class HomeScreen extends ConsumerWidget {
+/// Home screen with listings grid and search
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
+  final ScrollController _scrollController = ScrollController();
+  bool _showFloatingSearch = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.offset > 100 && !_showFloatingSearch) {
+      setState(() => _showFloatingSearch = true);
+    } else if (_scrollController.offset <= 100 && _showFloatingSearch) {
+      setState(() => _showFloatingSearch = false);
+    }
+  }
+
+  String _getInitial(dynamic user) {
+    if (user?.displayName?.isNotEmpty == true) {
+      return user!.displayName![0].toUpperCase();
+    }
+    if (user?.email?.isNotEmpty == true) {
+      return user!.email[0].toUpperCase();
+    }
+    return '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required by AutomaticKeepAliveClientMixin
+    final listingsAsync = ref.watch(listingsProvider);
+    final categories = ref.watch(categoriesProvider);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
     final authState = ref.watch(authNotifierProvider);
-    final user = authState.user;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Triply Stays'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: CircleAvatar(
-              backgroundColor: AppColors.primaryOrange,
-              radius: 16,
-              child: Text(
-                user?.displayName?.isNotEmpty == true
-                    ? user!.displayName![0].toUpperCase()
-                    : user?.email.isNotEmpty == true
-                        ? user!.email[0].toUpperCase()
-                        : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            onSelected: (value) async {
-              if (value == 'profile') {
-                // TODO: Navigate to profile
-              } else if (value == 'settings') {
-                // TODO: Navigate to settings
-              } else if (value == 'sign_out') {
-                await ref.read(authNotifierProvider.notifier).signOut();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: const [
-                    Icon(Icons.person_outline, size: 20),
-                    SizedBox(width: 12),
-                    Text('Profile'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: const [
-                    Icon(Icons.settings_outlined, size: 20),
-                    SizedBox(width: 12),
-                    Text('Settings'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'sign_out',
-                child: Row(
-                  children: const [
-                    Icon(Icons.logout, size: 20, color: AppColors.error),
-                    SizedBox(width: 12),
-                    Text('Sign Out', style: TextStyle(color: AppColors.error)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.check_circle,
-              color: AppColors.success,
-              size: 64,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Welcome, ${user?.displayName ?? user?.email ?? 'User'}!',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You are now signed in to Triply Stays',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // App bar with search
+              _buildAppBar(authState),
+
+              // Search bar (hidden when scrolling)
+              SliverToBoxAdapter(
+                child: AnimatedOpacity(
+                  opacity: _showFloatingSearch ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: _showFloatingSearch ? 0 : null,
+                    child: _showFloatingSearch ? const SizedBox.shrink() : _buildSearchBar(),
                   ),
-                ],
+                ),
               ),
-              child: Column(
-                children: [
-                  _buildInfoRow('Email', user?.email ?? 'N/A'),
-                  const Divider(height: 24),
-                  _buildInfoRow(
-                    'Email Verified',
-                    user?.emailVerified == true ? 'Yes' : 'No',
-                  ),
-                  const Divider(height: 24),
-                  _buildInfoRow('User ID', user?.id ?? 'N/A'),
-                ],
+
+              // Categories
+              SliverToBoxAdapter(
+                child: categories.when(
+                  data: (cats) => _buildCategories(cats, selectedCategory),
+                  loading: () => const SizedBox(height: 60),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  onPressed: () async {
-                    await ref.read(authNotifierProvider.notifier).signOut();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                  ),
-                  child: const Text(
-                    'Sign Out',
+
+              // Section title
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Text(
+                    'Available Properties',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
               ),
+
+              // Listings
+              listingsAsync.when(
+                data: (listings) {
+                  if (listings.isEmpty) {
+                    return SliverFillRemaining(
+                      child: _buildEmptyState(),
+                    );
+                  }
+                  return SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 120),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final listing = listings[index];
+                          return ListingCard(
+                            listing: listing,
+                            onTap: () {
+                              context.push('/listing/${listing.id}');
+                            },
+                          );
+                        },
+                        childCount: listings.length,
+                      ),
+                    ),
+                  );
+                },
+                loading: () => SliverFillRemaining(
+                  child: _buildLoadingState(),
+                ),
+                error: (error, stack) => SliverFillRemaining(
+                  child: _buildErrorState(error.toString()),
+                ),
+              ),
+            ],
+          ),
+
+          // Floating search removed - search bar now just disappears when scrolling
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(authState) {
+    return SliverAppBar(
+      expandedHeight: 120,
+      floating: true,
+      pinned: true,
+      backgroundColor: AppColors.primaryOrange,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primaryOrange,
+                AppColors.primaryOrange.withOpacity(0.8),
+              ],
             ),
-          ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Combined logo with icon and text
+                  Expanded(
+                    child: Container(
+                      height: 50,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo/triply-stays-logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Notification button
+                  _GlassIconButton(
+                    icon: Icons.notifications_outlined,
+                    onTap: () {
+                      // TODO: Navigate to notifications
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  // Profile button with photo
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: authState.user?.photoUrl != null &&
+                                authState.user!.photoUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: authState.user!.photoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.white,
+                                  child: Center(
+                                    child: Text(
+                                      _getInitial(authState.user),
+                                      style: const TextStyle(
+                                        color: AppColors.primaryOrange,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.white,
+                                  child: Center(
+                                    child: Text(
+                                      _getInitial(authState.user),
+                                      style: const TextStyle(
+                                        color: AppColors.primaryOrange,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.white,
+                                child: Center(
+                                  child: Text(
+                                    _getInitial(authState.user),
+                                    style: const TextStyle(
+                                      color: AppColors.primaryOrange,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: GestureDetector(
+        onTap: () => context.go('/search'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.search,
+                color: AppColors.textSecondary,
+                size: 22,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Search destinations, properties...',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                ),
+              ),
+            ],
           ),
         ),
-        Text(
-          value.length > 20 ? '${value.substring(0, 20)}...' : value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
+  Widget _buildCategories(List<String> categories, String? selected) {
+    // Category icons
+    final categoryIcons = {
+      'Apartment': Icons.apartment,
+      'Villa': Icons.villa,
+      'House': Icons.home,
+      'Chalet': Icons.cabin,
+      'Cabin': Icons.cabin,
+      'Studio': Icons.weekend,
+      'Condo': Icons.domain,
+      'Treehouse': Icons.park,
+      'Caravan': Icons.rv_hookup,
+      'Tent': Icons.holiday_village,
+      'Van': Icons.airport_shuttle,
+      'Loft': Icons.roofing,
+    };
+
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: categories.length + 1, // +1 for "All" option
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            // All category
+            final isSelected = selected == null;
+            return _CategoryChip(
+              icon: Icons.grid_view,
+              label: 'All',
+              isSelected: isSelected,
+              onTap: () {
+                ref.read(selectedCategoryProvider.notifier).state = null;
+                ref.read(listingFilterProvider.notifier).state =
+                    ref.read(listingFilterProvider).copyWith(category: null);
+              },
+            );
+          }
+
+          final category = categories[index - 1];
+          final isSelected = selected?.toLowerCase() == category.toLowerCase();
+
+          return _CategoryChip(
+            icon: categoryIcons[category] ?? Icons.home,
+            label: category,
+            isSelected: isSelected,
+            onTap: () {
+              ref.read(selectedCategoryProvider.notifier).state = category;
+              ref.read(listingFilterProvider.notifier).state =
+                  ref.read(listingFilterProvider).copyWith(category: category);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: AppColors.primaryOrange,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading properties...',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 64,
+            color: AppColors.error,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Failed to load properties',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              ref.invalidate(listingsProvider);
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.home_outlined,
+            size: 80,
+            color: AppColors.textLight.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No properties found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Try adjusting your filters',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Glass icon button for app bar
+class _GlassIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _GlassIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Category chip with icon
+class _CategoryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primaryOrange : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primaryOrange
+                  : AppColors.borderLight,
+              width: 1.5,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primaryOrange.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.2)
+                      : AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected ? Colors.white : AppColors.primaryOrange,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

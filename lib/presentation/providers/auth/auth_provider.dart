@@ -241,6 +241,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(errorMessage: null);
   }
 
+  /// Update password
+  Future<bool> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final result = await _authRepository.updatePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+
+    return result.fold(
+      onSuccess: (_) {
+        state = state.copyWith(isLoading: false);
+        return true;
+      },
+      onFailure: (failure) {
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        return false;
+      },
+    );
+  }
+
+  /// Get sign-in provider
+  String? get signInProvider => _authRepository.signInProvider;
+
   /// Reload user data
   Future<void> reloadUser() async {
     final result = await _authRepository.reloadUser();
@@ -254,6 +281,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
       },
       onFailure: (failure) {
         // Keep current state on reload failure
+      },
+    );
+  }
+
+  /// Update user profile
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+    bool? hasWhatsApp,
+    String? photoUrl,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final result = await _authRepository.updateProfile(
+      firstName: firstName,
+      lastName: lastName,
+      phoneNumber: phoneNumber,
+      hasWhatsApp: hasWhatsApp,
+      photoUrl: photoUrl,
+    );
+
+    return result.fold(
+      onSuccess: (user) {
+        state = AuthState.authenticated(user);
+        return true;
+      },
+      onFailure: (failure) {
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        return false;
       },
     );
   }

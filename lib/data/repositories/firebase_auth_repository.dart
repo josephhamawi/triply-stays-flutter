@@ -320,7 +320,11 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AuthResult<User>> updateProfile({
     String? displayName,
+    String? firstName,
+    String? lastName,
     String? photoUrl,
+    String? phoneNumber,
+    bool? hasWhatsApp,
   }) async {
     try {
       final user = _firebaseAuth.currentUser;
@@ -331,20 +335,36 @@ class FirebaseAuthRepository implements AuthRepository {
         ));
       }
 
-      if (displayName != null) {
-        await user.updateDisplayName(displayName);
+      // Build displayName from first/last name if not provided
+      String? finalDisplayName = displayName;
+      if (finalDisplayName == null && (firstName != null || lastName != null)) {
+        finalDisplayName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+      }
+
+      if (finalDisplayName != null) {
+        await user.updateDisplayName(finalDisplayName);
       }
 
       if (photoUrl != null) {
         await user.updatePhotoURL(photoUrl);
       }
 
-      // Update Firestore
-      await _firestore.collection('users').doc(user.uid).update({
-        if (displayName != null) 'displayName': displayName,
-        if (photoUrl != null) 'photoUrl': photoUrl,
+      // Update Firestore with all fields
+      final updateData = <String, dynamic>{
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (finalDisplayName != null) updateData['displayName'] = finalDisplayName;
+      if (firstName != null) updateData['firstName'] = firstName;
+      if (lastName != null) updateData['lastName'] = lastName;
+      if (photoUrl != null) updateData['photoUrl'] = photoUrl;
+      if (phoneNumber != null) updateData['phone'] = phoneNumber;
+      if (hasWhatsApp != null) updateData['hasWhatsApp'] = hasWhatsApp;
+
+      await _firestore.collection('users').doc(user.uid).set(
+        updateData,
+        SetOptions(merge: true),
+      );
 
       await user.reload();
       final updatedUser = await _getUserWithFirestoreData(_firebaseAuth.currentUser!);
@@ -387,6 +407,62 @@ class FirebaseAuthRepository implements AuthRepository {
     } catch (e) {
       return false;
     }
+  }
+
+  @override
+  Future<AuthResult<void>> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        return AuthResult.failure(const AuthFailure(
+          message: 'No user is signed in.',
+          code: 'no-user',
+        ));
+      }
+
+      if (user.email == null) {
+        return AuthResult.failure(const AuthFailure(
+          message: 'No email associated with this account.',
+          code: 'no-email',
+        ));
+      }
+
+      // Reauthenticate the user first
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+
+      // Now update the password
+      await user.updatePassword(newPassword);
+
+      return AuthResult.success(null);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      return AuthResult.failure(_mapFirebaseAuthException(e));
+    } catch (e) {
+      return AuthResult.failure(AuthFailure(
+        message: e.toString(),
+        originalError: e,
+      ));
+    }
+  }
+
+  @override
+  String? get signInProvider {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+
+    for (final provider in user.providerData) {
+      if (provider.providerId == 'google.com') return 'google';
+      if (provider.providerId == 'apple.com') return 'apple';
+      if (provider.providerId == 'password') return 'password';
+    }
+    return null;
   }
 
   // Private helper methods

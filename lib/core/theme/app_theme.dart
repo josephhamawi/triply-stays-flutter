@@ -57,6 +57,21 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.cardBackground,
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 16,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: AppColors.primaryOrange,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        hintStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 16,
+        ),
+        prefixIconColor: AppColors.textSecondary,
+        suffixIconColor: AppColors.textSecondary,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.borderLight),

@@ -147,7 +147,11 @@ abstract class AuthRepository {
   /// Update user profile
   Future<AuthResult<User>> updateProfile({
     String? displayName,
+    String? firstName,
+    String? lastName,
     String? photoUrl,
+    String? phoneNumber,
+    bool? hasWhatsApp,
   });
 
   /// Reload the current user data
@@ -155,4 +159,13 @@ abstract class AuthRepository {
 
   /// Check if email is verified in Firestore
   Future<bool> isEmailVerified(String userId);
+
+  /// Update user password (requires reauthentication)
+  Future<AuthResult<void>> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Get the sign-in provider for the current user
+  String? get signInProvider;
 }
