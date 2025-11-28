@@ -159,6 +159,10 @@ class UserModel extends User {
       mergedDisplayName = '${fsFirstName ?? ''} ${fsLastName ?? ''}'.trim();
     }
 
+    // Firestore phone field takes priority over Firebase Auth phoneNumber
+    // because Firestore is where we store user-entered phone numbers
+    final firestorePhone = firestoreData['phone'] as String? ?? firestoreData['phoneNumber'] as String?;
+
     return UserModel(
       id: id,
       email: email,
@@ -167,7 +171,7 @@ class UserModel extends User {
       lastName: fsLastName,
       photoUrl: photoUrl ?? firestoreData['photoUrl'] as String? ?? firestoreData['photoURL'] as String?,
       emailVerified: firestoreData['emailVerified'] as bool? ?? emailVerified,
-      phoneNumber: phoneNumber ?? firestoreData['phoneNumber'] as String? ?? firestoreData['phone'] as String?,
+      phoneNumber: firestorePhone ?? phoneNumber,
       hasWhatsApp: firestoreData['hasWhatsApp'] as bool? ?? false,
       createdAt: createdAt,
       updatedAt: _parseTimestamp(firestoreData['updatedAt']),

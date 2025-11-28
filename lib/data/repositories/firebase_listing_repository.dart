@@ -23,16 +23,21 @@ class FirebaseListingRepository implements ListingRepository {
 
     return query.snapshots().map((snapshot) {
       var listings = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        // Filter for verified listings only (matching web app logic)
-        // Hide if needsReview is true or verified is explicitly false
-        final needsReview = data['needsReview'] as bool? ?? false;
-        final verified = data['verified'] as bool?;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          // Filter for verified listings only (matching web app logic)
+          // Hide if needsReview is true or verified is explicitly false
+          final needsReview = data['needsReview'] as bool? ?? false;
+          final verified = data['verified'] as bool?;
 
-        if (needsReview == true) return null;
-        if (verified == false) return null;
+          if (needsReview == true) return null;
+          if (verified == false) return null;
 
-        return ListingModel.fromFirestore(doc);
+          return ListingModel.fromFirestore(doc);
+        } catch (e) {
+          // Log error but don't crash - skip this listing
+          return null;
+        }
       }).whereType<ListingModel>().toList();
 
       // Sort by createdAt descending
