@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -31,6 +32,7 @@ class ListingCard extends ConsumerStatefulWidget {
 class _ListingCardState extends ConsumerState<ListingCard> {
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
+  bool _isProcessing = false; // Prevent multiple taps
 
   @override
   void dispose() {
@@ -271,7 +273,7 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                             // WhatsApp button
                             Expanded(
                               child: _ContactButton(
-                                icon: Icons.chat,
+                                icon: FontAwesomeIcons.whatsapp,
                                 label: 'WhatsApp',
                                 color: const Color(0xFF25D366),
                                 onTap: () => _launchWhatsApp(widget.listing.hostPhone!),
@@ -302,53 +304,127 @@ class _ListingCardState extends ConsumerState<ListingCard> {
   }
 
   Future<void> _launchPhone(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      final uri = Uri(scheme: 'tel', path: phone);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
   Future<void> _launchWhatsApp(String phone) async {
-    // Remove any non-digit characters for WhatsApp
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    final uri = Uri.parse('https://wa.me/$cleanPhone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      // Remove ALL non-digit characters for WhatsApp
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+      debugPrint('WhatsApp DEBUG - Original phone: "$phone"');
+      debugPrint('WhatsApp DEBUG - Cleaned phone: "$cleanPhone"');
+
+      if (cleanPhone.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid phone number')),
+          );
+        }
+        return;
+      }
+
+      // Try native WhatsApp URL scheme first
+      final whatsappUri = Uri.parse('whatsapp://send?phone=$cleanPhone');
+      debugPrint('WhatsApp DEBUG - Trying native: $whatsappUri');
+
+      bool launched = await launchUrl(
+        whatsappUri,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+
+      debugPrint('WhatsApp DEBUG - Native launch result: $launched');
+
+      // If native scheme fails, try wa.me with external application mode
+      if (!launched) {
+        final waMeUri = Uri.parse('https://wa.me/$cleanPhone');
+        debugPrint('WhatsApp DEBUG - Trying wa.me: $waMeUri');
+        launched = await launchUrl(
+          waMeUri,
+          mode: LaunchMode.externalApplication,
+        );
+        debugPrint('WhatsApp DEBUG - wa.me launch result: $launched');
+      }
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp. Please make sure WhatsApp is installed.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('WhatsApp DEBUG - Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
   Future<void> _startConversation() async {
-    final listing = widget.listing;
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
 
-    // Check if user is authenticated
-    final authState = ref.read(authNotifierProvider);
-    if (authState.user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to message the host')),
-      );
-      return;
-    }
+    try {
+      final listing = widget.listing;
 
-    // Don't message yourself
-    if (listing.hostId == authState.user!.id) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This is your own listing')),
-      );
-      return;
-    }
+      // Check if user is authenticated
+      final authState = ref.read(authNotifierProvider);
+      if (authState.user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please sign in to message the host')),
+          );
+        }
+        return;
+      }
 
-    // Start conversation
-    final conversation = await ref.read(messagingNotifierProvider.notifier).startConversation(
-      otherUserId: listing.hostId,
-      otherUserName: listing.hostName ?? 'Host',
-      otherUserPhotoUrl: listing.hostPhotoURL,
-      listingId: listing.id,
+      // Don't message yourself
+      if (listing.hostId == authState.user!.id) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This is your own listing')),
+          );
+        }
+        return;
+      }
+
+      // Start conversation
+      final conversation = await ref.read(messagingNotifierProvider.notifier).startConversation(
+        otherUserId: listing.hostId,
+        otherUserName: listing.hostName ?? 'Host',
+        otherUserPhotoUrl: listing.hostPhotoURL,
+        listingId: listing.id,
       listingTitle: listing.title,
       listingImageUrl: listing.images.isNotEmpty ? listing.images.first : null,
     );
 
-    if (conversation != null && mounted) {
-      context.push('/chat/${conversation.id}');
+      if (conversation != null && mounted) {
+        context.push('/chat/${conversation.id}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 }

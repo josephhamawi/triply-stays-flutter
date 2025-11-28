@@ -1,1 +1,33 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"mvp-vacation-rental","appId":"1:1031123783517:android:dafc0ae345b87b230962b4","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"mvp-vacation-rental","appId":"1:1031123783517:ios:f78b2813f7b7bb700962b4","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"mvp-vacation-rental","configurations":{"android":"1:1031123783517:android:dafc0ae345b87b230962b4","ios":"1:1031123783517:ios:f78b2813f7b7bb700962b4"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mvp-vacation-rental",
+          "appId": "1:1031123783517:android:dafc0ae345b87b230962b4",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "mvp-vacation-rental",
+          "appId": "1:1031123783517:ios:f78b2813f7b7bb700962b4",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mvp-vacation-rental",
+          "configurations": {
+            "android": "1:1031123783517:android:dafc0ae345b87b230962b4",
+            "ios": "1:1031123783517:ios:f78b2813f7b7bb700962b4"
+          }
+        }
+      }
+    }
+  }
+}

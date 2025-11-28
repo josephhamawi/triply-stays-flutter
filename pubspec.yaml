@@ -60,6 +60,7 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.8
+  font_awesome_flutter: ^10.8.0
 
   # Code Generation
   freezed_annotation: ^2.4.4

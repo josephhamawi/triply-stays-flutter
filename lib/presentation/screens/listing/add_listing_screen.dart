@@ -48,13 +48,18 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
       }
     });
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         if (state.currentStep > 0) {
           notifier.previousStep();
-          return false;
+        } else {
+          final shouldPop = await _showExitConfirmation(context);
+          if (shouldPop && context.mounted) {
+            Navigator.pop(context);
+          }
         }
-        return await _showExitConfirmation(context);
       },
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
@@ -66,7 +71,8 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () async {
-              if (await _showExitConfirmation(context)) {
+              final shouldPop = await _showExitConfirmation(context);
+              if (shouldPop && context.mounted) {
                 Navigator.pop(context);
               }
             },
@@ -79,7 +85,7 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
               child: PageView(
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
-                children: [
+                children: const [
                   _BasicInfoStep(),
                   _LocationStep(),
                   _DetailsStep(),
@@ -256,22 +262,44 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
 }
 
 /// Step 1: Basic Info
-class _BasicInfoStep extends ConsumerWidget {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+class _BasicInfoStep extends ConsumerStatefulWidget {
+  const _BasicInfoStep();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BasicInfoStep> createState() => _BasicInfoStepState();
+}
+
+class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _descriptionController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
     final categoriesAsync = ref.watch(categoriesProvider);
     final viewsAsync = ref.watch(viewsProvider);
 
-    if (_titleController.text.isEmpty && state.formData.title.isNotEmpty) {
+    // Initialize controllers only once with existing data
+    if (!_initialized) {
       _titleController.text = state.formData.title;
-    }
-    if (_descriptionController.text.isEmpty && state.formData.description.isNotEmpty) {
       _descriptionController.text = state.formData.description;
+      _initialized = true;
     }
 
     return SingleChildScrollView(
@@ -341,11 +369,19 @@ class _BasicInfoStep extends ConsumerWidget {
 }
 
 /// Step 2: Location
-class _LocationStep extends ConsumerWidget {
-  final _cityController = TextEditingController();
-  final _locationController = TextEditingController();
+class _LocationStep extends ConsumerStatefulWidget {
+  const _LocationStep();
 
-  final List<Map<String, String>> _countries = const [
+  @override
+  ConsumerState<_LocationStep> createState() => _LocationStepState();
+}
+
+class _LocationStepState extends ConsumerState<_LocationStep> {
+  late final TextEditingController _cityController;
+  late final TextEditingController _locationController;
+  bool _initialized = false;
+
+  static const List<Map<String, String>> _countries = [
     {'code': 'LB', 'name': 'Lebanon'},
     {'code': 'AE', 'name': 'UAE'},
     {'code': 'SA', 'name': 'Saudi Arabia'},
@@ -357,15 +393,29 @@ class _LocationStep extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _cityController = TextEditingController();
+    _locationController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
 
-    if (_cityController.text.isEmpty && state.formData.city.isNotEmpty) {
+    // Initialize controllers only once with existing data
+    if (!_initialized) {
       _cityController.text = state.formData.city;
-    }
-    if (_locationController.text.isEmpty && state.formData.location != null) {
-      _locationController.text = state.formData.location!;
+      _locationController.text = state.formData.location ?? '';
+      _initialized = true;
     }
 
     return SingleChildScrollView(
@@ -380,9 +430,12 @@ class _LocationStep extends ConsumerWidget {
             hint: 'Select country',
             items: _countries.map((c) => c['code']!).toList(),
             itemLabels: _countries.map((c) => c['name']!).toList(),
-            onChanged: (value) => notifier.updateFormData(
-              (data) => data.copyWith(country: value ?? 'LB', city: ''),
-            ),
+            onChanged: (value) {
+              notifier.updateFormData(
+                (data) => data.copyWith(country: value ?? 'LB', city: ''),
+              );
+              _cityController.clear();
+            },
           ),
           const SizedBox(height: 16),
           _buildSectionTitle('City'),
@@ -414,11 +467,41 @@ class _LocationStep extends ConsumerWidget {
 }
 
 /// Step 3: Details
-class _DetailsStep extends ConsumerWidget {
+class _DetailsStep extends ConsumerStatefulWidget {
+  const _DetailsStep();
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DetailsStep> createState() => _DetailsStepState();
+}
+
+class _DetailsStepState extends ConsumerState<_DetailsStep> {
+  late final TextEditingController _priceController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
+
+    // Initialize controller only once with existing data
+    if (!_initialized) {
+      if (state.formData.price > 0) {
+        _priceController.text = state.formData.price.toStringAsFixed(0);
+      }
+      _initialized = true;
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -428,6 +511,7 @@ class _DetailsStep extends ConsumerWidget {
           _buildSectionTitle('Price per Night (USD)'),
           const SizedBox(height: 8),
           TextField(
+            controller: _priceController,
             decoration: _inputDecoration('\$0'),
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
             keyboardType: TextInputType.number,
@@ -481,6 +565,8 @@ class _DetailsStep extends ConsumerWidget {
 
 /// Step 4: Amenities
 class _AmenitiesStep extends ConsumerWidget {
+  const _AmenitiesStep();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(addListingProvider);
@@ -535,6 +621,8 @@ class _AmenitiesStep extends ConsumerWidget {
 
 /// Step 5: Photos
 class _PhotosStep extends ConsumerWidget {
+  const _PhotosStep();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(addListingProvider);
@@ -664,16 +752,38 @@ class _PhotosStep extends ConsumerWidget {
 }
 
 /// Step 6: House Rules
-class _RulesStep extends ConsumerWidget {
-  final _rulesController = TextEditingController();
+class _RulesStep extends ConsumerStatefulWidget {
+  const _RulesStep();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RulesStep> createState() => _RulesStepState();
+}
+
+class _RulesStepState extends ConsumerState<_RulesStep> {
+  late final TextEditingController _rulesController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rulesController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _rulesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
 
-    if (_rulesController.text.isEmpty && state.formData.rules != null) {
-      _rulesController.text = state.formData.rules!;
+    // Initialize controller only once with existing data
+    if (!_initialized) {
+      _rulesController.text = state.formData.rules ?? '';
+      _initialized = true;
     }
 
     return SingleChildScrollView(
@@ -709,6 +819,8 @@ class _RulesStep extends ConsumerWidget {
 
 /// Step 7: Review
 class _ReviewStep extends ConsumerWidget {
+  const _ReviewStep();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(addListingProvider);

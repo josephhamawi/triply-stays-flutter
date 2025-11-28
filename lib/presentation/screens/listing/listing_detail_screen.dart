@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -645,7 +646,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                       listing.hostPhone!.isNotEmpty) ...[
                     Expanded(
                       child: _ContactButton(
-                        icon: Icons.chat,
+                        icon: FontAwesomeIcons.whatsapp,
                         label: 'WhatsApp',
                         color: const Color(0xFF25D366),
                         onTap: () => _openWhatsApp(listing),
@@ -691,16 +692,46 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       return;
     }
 
-    // Format phone number and open WhatsApp
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    // Remove ALL non-digit characters for WhatsApp
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+    debugPrint('WhatsApp DEBUG - Original phone: "$phone"');
+    debugPrint('WhatsApp DEBUG - Cleaned phone: "$cleanPhone"');
+
+    if (cleanPhone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid phone number')),
+        );
+      }
+      return;
+    }
+
     final message = Uri.encodeComponent(
       'Hi! I\'m interested in your property "${listing.title}" on Triply Stays.',
     );
-    final whatsappUrl = Uri.parse('https://wa.me/$cleanPhone?text=$message');
 
-    if (await canLaunchUrl(whatsappUrl)) {
-      await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-    } else {
+    // Try different WhatsApp URL formats for iOS compatibility
+    // Format 1: wa.me universal link (should work on all devices)
+    final waMeUrl = 'https://wa.me/$cleanPhone?text=$message';
+    debugPrint('WhatsApp DEBUG - Trying wa.me URL: $waMeUrl');
+
+    try {
+      // Open in in-app browser which handles the WhatsApp deep link better
+      final waMeUri = Uri.parse(waMeUrl);
+      final launched = await launchUrl(
+        waMeUri,
+        mode: LaunchMode.inAppBrowserView,
+      );
+      debugPrint('WhatsApp DEBUG - Launch result: $launched');
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    } catch (e) {
+      debugPrint('WhatsApp DEBUG - Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open WhatsApp')),

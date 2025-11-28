@@ -89,17 +89,6 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
     }
   }
 
-  void _onKeyPressed(int index, RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.backspace) {
-        if (_controllers[index].text.isEmpty && index > 0) {
-          _focusNodes[index - 1].requestFocus();
-          _controllers[index - 1].clear();
-        }
-      }
-    }
-  }
-
   void clear() {
     for (final controller in _controllers) {
       controller.clear();
@@ -115,9 +104,19 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
         return SizedBox(
           width: 48,
           height: 56,
-          child: RawKeyboardListener(
-            focusNode: FocusNode(),
-            onKey: (event) => _onKeyPressed(index, event),
+          child: Focus(
+            skipTraversal: true,
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.backspace) {
+                if (_controllers[index].text.isEmpty && index > 0) {
+                  _focusNodes[index - 1].requestFocus();
+                  _controllers[index - 1].clear();
+                  return KeyEventResult.handled;
+                }
+              }
+              return KeyEventResult.ignored;
+            },
             child: TextFormField(
               controller: _controllers[index],
               focusNode: _focusNodes[index],

@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/repositories/listing_repository.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/listings_provider.dart';
+import '../../widgets/common/liquid_orb.dart';
 import '../../widgets/listing/listing_card.dart';
 
 /// Home screen with listings grid and search
@@ -20,7 +22,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool _showFloatingSearch = false;
+  bool _isSearchExpanded = false;
+  bool _showFilters = false;
+  RangeValues _priceRange = const RangeValues(0, 1000);
+  int _minBedrooms = 0;
+  int _minBathrooms = 0;
+  int _minGuests = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -29,12 +39,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -44,6 +57,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     } else if (_scrollController.offset <= 100 && _showFloatingSearch) {
       setState(() => _showFloatingSearch = false);
     }
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (_isSearchExpanded) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _searchFocusNode.requestFocus();
+        });
+      } else {
+        _searchFocusNode.unfocus();
+        _searchController.clear();
+        _clearFilters();
+      }
+    });
+  }
+
+  void _applySearch() {
+    final currentFilter = ref.read(listingFilterProvider);
+    ref.read(listingFilterProvider.notifier).state = currentFilter.copyWith(
+      searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+      minPrice: _priceRange.start > 0 ? _priceRange.start : null,
+      maxPrice: _priceRange.end < 1000 ? _priceRange.end : null,
+      minBedrooms: _minBedrooms > 0 ? _minBedrooms : null,
+      minBathrooms: _minBathrooms > 0 ? _minBathrooms : null,
+      minGuests: _minGuests > 0 ? _minGuests : null,
+    );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _priceRange = const RangeValues(0, 1000);
+      _minBedrooms = 0;
+      _minBathrooms = 0;
+      _minGuests = 0;
+    });
+    ref.read(listingFilterProvider.notifier).state = const ListingFilter(country: 'LB');
   }
 
   String _getInitial(dynamic user) {
@@ -155,116 +205,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildAppBar(authState) {
     return SliverAppBar(
-      expandedHeight: 120,
-      floating: true,
       pinned: true,
+      floating: false,
+      snap: false,
+      toolbarHeight: 70,
       backgroundColor: AppColors.primaryOrange,
       elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.primaryOrange,
-                AppColors.primaryOrange.withOpacity(0.8),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Combined logo with icon and text
-                  Expanded(
-                    child: Container(
-                      height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        'assets/images/logo/triply-stays-logo.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Notification button
-                  _GlassIconButton(
-                    icon: Icons.notifications_outlined,
-                    onTap: () {
-                      // TODO: Navigate to notifications
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  // Profile button with photo
-                  GestureDetector(
-                    onTap: () => context.go('/profile'),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: ClipOval(
-                        child: authState.user?.photoUrl != null &&
-                                authState.user!.photoUrl!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: authState.user!.photoUrl!,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: Colors.white,
-                                  child: Center(
-                                    child: Text(
-                                      _getInitial(authState.user),
-                                      style: const TextStyle(
-                                        color: AppColors.primaryOrange,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Colors.white,
-                                  child: Center(
-                                    child: Text(
-                                      _getInitial(authState.user),
-                                      style: const TextStyle(
-                                        color: AppColors.primaryOrange,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                color: Colors.white,
-                                child: Center(
-                                  child: Text(
-                                    _getInitial(authState.user),
-                                    style: const TextStyle(
-                                      color: AppColors.primaryOrange,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
+      automaticallyImplyLeading: false,
+      title: Row(
+        children: [
+          // Combined logo with icon and text
+          Expanded(
+            child: Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Image.asset(
+                'assets/images/logo/triply-stays-logo.png',
+                fit: BoxFit.contain,
               ),
             ),
           ),
-        ),
+          const SizedBox(width: 12),
+          // Notification button
+          _GlassIconButton(
+            icon: Icons.notifications_outlined,
+            onTap: () {
+              // TODO: Navigate to notifications
+            },
+          ),
+          const SizedBox(width: 8),
+          // Profile button with photo
+          GestureDetector(
+            onTap: () => context.go('/profile'),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: ClipOval(
+                child: authState.user?.photoUrl != null &&
+                        authState.user!.photoUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: authState.user!.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.white,
+                          child: Center(
+                            child: Text(
+                              _getInitial(authState.user),
+                              style: const TextStyle(
+                                color: AppColors.primaryOrange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.white,
+                          child: Center(
+                            child: Text(
+                              _getInitial(authState.user),
+                              style: const TextStyle(
+                                color: AppColors.primaryOrange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.white,
+                        child: Center(
+                          child: Text(
+                            _getInitial(authState.user),
+                            style: const TextStyle(
+                              color: AppColors.primaryOrange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -272,40 +305,312 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: GestureDetector(
-        onTap: () => context.go('/search'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+      child: Column(
+        children: [
+          // Modern pill-shaped search bar with liquid orb
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Liquid animated orb
+                GestureDetector(
+                  onTap: _toggleSearch,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    padding: const EdgeInsets.all(8),
+                    child: LiquidOrb(
+                      size: 40,
+                      child: const Icon(
+                        Icons.search,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                // Search input or hint text
+                Expanded(
+                  child: _isSearchExpanded
+                      ? TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          cursorColor: AppColors.primaryOrange,
+                          decoration: InputDecoration(
+                            hintText: 'Search properties...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w300,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 16,
+                            ),
+                          ),
+                          onSubmitted: (_) => _applySearch(),
+                          onChanged: (_) => _applySearch(),
+                        )
+                      : GestureDetector(
+                          onTap: _toggleSearch,
+                          child: Container(
+                            color: Colors.transparent,
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              'Search destinations, properties...',
+                              style: TextStyle(
+                                color: Colors.grey.shade400,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+                // Clear button (when searching)
+                if (_isSearchExpanded && _searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      color: Colors.grey.shade500,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _applySearch();
+                    },
+                  ),
+                // Filter button
+                GestureDetector(
+                  onTap: () => setState(() => _showFilters = !_showFilters),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _showFilters
+                          ? AppColors.primaryOrange
+                          : Colors.transparent,
+                    ),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      color: _showFilters
+                          ? Colors.white
+                          : Colors.grey.shade500,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Filters panel
+          if (_showFilters) ...[
+            const SizedBox(height: 12),
+            _buildFiltersPanel(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltersPanel() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Price range
+          const Text(
+            'Price Range',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          RangeSlider(
+            values: _priceRange,
+            min: 0,
+            max: 1000,
+            divisions: 20,
+            activeColor: AppColors.primaryOrange,
+            labels: RangeLabels(
+              '\$${_priceRange.start.round()}',
+              '\$${_priceRange.end.round()}',
+            ),
+            onChanged: (values) {
+              setState(() => _priceRange = values);
+              _applySearch();
+            },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '\$${_priceRange.start.round()}/night',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+              Text(
+                '\$${_priceRange.end.round()}/night',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ],
           ),
-          child: const Row(
+          const SizedBox(height: 12),
+
+          // Room filters
+          Row(
             children: [
-              Icon(
-                Icons.search,
-                color: AppColors.textSecondary,
-                size: 22,
+              Expanded(
+                child: _buildCounterFilter(
+                  label: 'Bedrooms',
+                  value: _minBedrooms,
+                  onChanged: (v) {
+                    setState(() => _minBedrooms = v);
+                    _applySearch();
+                  },
+                ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCounterFilter(
+                  label: 'Bathrooms',
+                  value: _minBathrooms,
+                  onChanged: (v) {
+                    setState(() => _minBathrooms = v);
+                    _applySearch();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCounterFilter(
+                  label: 'Guests',
+                  value: _minGuests,
+                  onChanged: (v) {
+                    setState(() => _minGuests = v);
+                    _applySearch();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Clear button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _clearFilters,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryOrange,
+                side: const BorderSide(color: AppColors.primaryOrange),
+              ),
+              child: const Text('Clear Filters'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCounterFilter({
+    required String label,
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.backgroundLight,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: value > 0 ? () => onChanged(value - 1) : null,
+                child: Container(
+                  width: 28,
+                  height: 32,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.remove,
+                    size: 16,
+                    color: value > 0 ? AppColors.textPrimary : AppColors.textLight,
+                  ),
+                ),
+              ),
               Text(
-                'Search destinations, properties...',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 15,
+                value == 0 ? 'Any' : '$value+',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => onChanged(value + 1),
+                child: Container(
+                  width: 28,
+                  height: 32,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.add,
+                    size: 16,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 

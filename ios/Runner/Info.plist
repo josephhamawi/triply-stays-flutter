@@ -49,5 +49,11 @@
 	<string>Triply Stays needs camera access to take photos of your ID for identity verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Triply Stays needs photo library access to select photos of your ID for identity verification.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
 </dict>
 </plist>

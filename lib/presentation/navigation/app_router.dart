@@ -221,11 +221,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Listenable that notifies GoRouter when auth state changes
+/// Listenable that notifies GoRouter when auth status changes
 class RouterRefreshStream extends ChangeNotifier {
   RouterRefreshStream(this._ref) {
     _ref.listen(authNotifierProvider, (previous, next) {
-      notifyListeners();
+      // Only notify when auth STATUS changes (login/logout/verification)
+      // Don't notify when just user data changes (like profile update)
+      if (previous?.status != next.status) {
+        notifyListeners();
+      }
     });
   }
 

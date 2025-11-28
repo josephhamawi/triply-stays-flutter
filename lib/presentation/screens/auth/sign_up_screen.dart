@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
@@ -305,7 +306,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               ),
                               recognizer: TapGestureRecognizer()
                                 ..onTap = () {
-                                  // TODO: Navigate to Terms of Service
+                                  launchUrl(
+                                    Uri.parse('https://triplystays.com/terms'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 },
                             ),
                             const TextSpan(text: ' and '),
@@ -317,7 +321,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               ),
                               recognizer: TapGestureRecognizer()
                                 ..onTap = () {
-                                  // TODO: Navigate to Privacy Policy
+                                  launchUrl(
+                                    Uri.parse('https://triplystays.com/privacy'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 },
                             ),
                           ],
