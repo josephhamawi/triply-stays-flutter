@@ -4,32 +4,68 @@ import '../../domain/entities/conversation.dart';
 import '../../domain/entities/message.dart';
 
 /// Repository for handling messaging functionality with Firestore
+/// Uses 'chats' collection for compatibility with web app
 class MessagingRepository {
   final FirebaseFirestore _firestore;
 
   MessagingRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _conversationsRef =>
-      _firestore.collection('conversations');
+  /// Uses 'chats' collection to match web app structure
+  CollectionReference<Map<String, dynamic>> get _chatsRef =>
+      _firestore.collection('chats');
 
-  CollectionReference<Map<String, dynamic>> _messagesRef(String conversationId) =>
-      _conversationsRef.doc(conversationId).collection('messages');
+  CollectionReference<Map<String, dynamic>> _messagesRef(String chatId) =>
+      _chatsRef.doc(chatId).collection('messages');
 
   /// Get conversations stream for a user
+  /// Queries both hostId and guestId fields for web app compatibility
   Stream<List<Conversation>> getConversationsStream(String userId) {
-    return _conversationsRef
-        .where('participantIds', arrayContains: userId)
-        .orderBy('lastMessageAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
+    // Query for chats where user is host
+    final hostChatsStream = _chatsRef
+        .where('hostId', isEqualTo: userId)
+        .snapshots();
+
+    // Query for chats where user is guest
+    final guestChatsStream = _chatsRef
+        .where('guestId', isEqualTo: userId)
+        .snapshots();
+
+    // Combine both streams
+    return hostChatsStream.asyncExpand((hostSnapshot) {
+      return guestChatsStream.map((guestSnapshot) {
+        // Combine documents from both queries
+        final allDocs = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+
+        for (final doc in hostSnapshot.docs) {
+          allDocs[doc.id] = doc;
+        }
+        for (final doc in guestSnapshot.docs) {
+          allDocs[doc.id] = doc;
+        }
+
+        // Convert to Conversation objects
+        final conversations = allDocs.values
             .map((doc) => Conversation.fromMap(doc.id, doc.data()))
-            .toList());
+            // Filter out deleted conversations
+            .where((conv) => !conv.isDeletedFor(userId))
+            .toList();
+
+        // Sort by lastMessageAt descending (most recent first)
+        conversations.sort((a, b) {
+          final aTime = a.lastMessageAt ?? a.updatedAt;
+          final bTime = b.lastMessageAt ?? b.updatedAt;
+          return bTime.compareTo(aTime);
+        });
+
+        return conversations;
+      });
+    });
   }
 
   /// Get a single conversation by ID
-  Future<Conversation?> getConversation(String conversationId) async {
-    final doc = await _conversationsRef.doc(conversationId).get();
+  Future<Conversation?> getConversation(String chatId) async {
+    final doc = await _chatsRef.doc(chatId).get();
     if (doc.exists && doc.data() != null) {
       return Conversation.fromMap(doc.id, doc.data()!);
     }
@@ -37,6 +73,7 @@ class MessagingRepository {
   }
 
   /// Find or create a conversation between two users for a specific listing
+  /// Uses web app's chat ID format: ${listingId}_${guestId}_${hostId}
   Future<Conversation> getOrCreateConversation({
     required String currentUserId,
     required String currentUserName,
@@ -47,72 +84,72 @@ class MessagingRepository {
     String? listingId,
     String? listingTitle,
     String? listingImageUrl,
+    required bool isCurrentUserHost,
   }) async {
-    // First, try to find existing conversation
-    final existingQuery = await _conversationsRef
-        .where('participantIds', arrayContains: currentUserId)
-        .get();
+    // Determine host and guest IDs based on role
+    final hostId = isCurrentUserHost ? currentUserId : otherUserId;
+    final guestId = isCurrentUserHost ? otherUserId : currentUserId;
+    final hostName = isCurrentUserHost ? currentUserName : otherUserName;
+    final guestName = isCurrentUserHost ? otherUserName : currentUserName;
 
-    for (final doc in existingQuery.docs) {
-      final data = doc.data();
-      final participantIds = List<String>.from(data['participantIds'] ?? []);
+    // Generate chat ID in web app format
+    final chatId = '${listingId ?? 'general'}_${guestId}_$hostId';
 
-      if (participantIds.contains(otherUserId)) {
-        // If we have a listingId, check if it matches
-        if (listingId != null) {
-          if (data['listingId'] == listingId) {
-            return Conversation.fromMap(doc.id, data);
-          }
-        } else {
-          // No listingId specified, return any conversation with this user
-          return Conversation.fromMap(doc.id, data);
-        }
-      }
+    // Check if chat already exists
+    final existingDoc = await _chatsRef.doc(chatId).get();
+
+    if (existingDoc.exists && existingDoc.data() != null) {
+      return Conversation.fromMap(existingDoc.id, existingDoc.data()!);
     }
 
-    // Create new conversation
-    final now = DateTime.now();
-    final participants = {
-      currentUserId: ConversationParticipant(
-        id: currentUserId,
-        name: currentUserName,
-        photoUrl: currentUserPhotoUrl,
-      ),
-      otherUserId: ConversationParticipant(
-        id: otherUserId,
-        name: otherUserName,
-        photoUrl: otherUserPhotoUrl,
-      ),
+    // Create new chat with web app compatible structure
+    final chatData = {
+      'hostId': hostId,
+      'guestId': guestId,
+      'hostName': hostName,
+      'guestName': guestName,
+      'listingId': listingId,
+      'listingTitle': listingTitle,
+      'readByHost': true,
+      'readByGuest': true,
+      'deletedBy': <String>[],
     };
 
-    final conversation = Conversation(
-      id: '',
-      participantIds: [currentUserId, otherUserId],
+    await _chatsRef.doc(chatId).set(chatData);
+
+    final now = DateTime.now();
+    final participants = {
+      hostId: ConversationParticipant(id: hostId, name: hostName),
+      guestId: ConversationParticipant(id: guestId, name: guestName),
+    };
+
+    return Conversation(
+      id: chatId,
+      participantIds: [hostId, guestId],
       participants: participants,
+      hostId: hostId,
+      guestId: guestId,
       listingId: listingId,
       listingTitle: listingTitle,
-      listingImageUrl: listingImageUrl,
       createdAt: now,
       updatedAt: now,
     );
-
-    final docRef = await _conversationsRef.add(conversation.toMap());
-    return conversation.copyWith(id: docRef.id);
   }
 
   /// Get messages stream for a conversation
-  Stream<List<Message>> getMessagesStream(String conversationId) {
-    return _messagesRef(conversationId)
-        .orderBy('createdAt', descending: false)
+  /// Orders by 'timestamp' for web app compatibility
+  Stream<List<Message>> getMessagesStream(String chatId) {
+    return _messagesRef(chatId)
+        .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Message.fromMap(doc.id, doc.data()))
             .toList());
   }
 
-  /// Send a message
+  /// Send a message (compatible with web app)
   Future<Message> sendMessage({
-    required String conversationId,
+    required String chatId,
     required String senderId,
     required String senderName,
     String? senderPhotoUrl,
@@ -121,9 +158,39 @@ class MessagingRepository {
   }) async {
     final now = DateTime.now();
 
+    // Create message data compatible with web app
+    final messageData = {
+      'text': content,
+      'senderId': senderId,
+      'senderName': senderName,
+      'timestamp': FieldValue.serverTimestamp(),
+      'status': 'sent',
+      'read': false,
+      'messageType': type.name,
+      if (type == MessageType.image && senderPhotoUrl != null)
+        'imageUrl': senderPhotoUrl,
+    };
+
+    // Add message to subcollection
+    final docRef = await _messagesRef(chatId).add(messageData);
+
+    // Update chat with last message info (web app compatible)
+    final conversation = await getConversation(chatId);
+    if (conversation != null) {
+      final isHost = senderId == conversation.hostId;
+
+      await _chatsRef.doc(chatId).update({
+        'lastMessage': type == MessageType.image ? 'Sent an image' : content,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessageSender': senderId,
+        // Mark as unread for the other party
+        if (isHost) 'readByGuest': false else 'readByHost': false,
+      });
+    }
+
     final message = Message(
-      id: '',
-      conversationId: conversationId,
+      id: docRef.id,
+      conversationId: chatId,
       senderId: senderId,
       senderName: senderName,
       senderPhotoUrl: senderPhotoUrl,
@@ -132,87 +199,100 @@ class MessagingRepository {
       createdAt: now,
     );
 
-    // Add message to subcollection
-    final docRef = await _messagesRef(conversationId).add(message.toMap());
-
-    // Update conversation with last message info
-    final conversation = await getConversation(conversationId);
-    if (conversation != null) {
-      // Increment unread count for other participants
-      final newUnreadCount = Map<String, int>.from(conversation.unreadCount);
-      for (final participantId in conversation.participantIds) {
-        if (participantId != senderId) {
-          newUnreadCount[participantId] = (newUnreadCount[participantId] ?? 0) + 1;
-        }
-      }
-
-      await _conversationsRef.doc(conversationId).update({
-        'lastMessage': content,
-        'lastMessageAt': now.toIso8601String(),
-        'lastMessageSenderId': senderId,
-        'unreadCount': newUnreadCount,
-        'updatedAt': now.toIso8601String(),
-      });
-    }
-
-    return message.copyWith(id: docRef.id);
+    return message;
   }
 
-  /// Mark messages as read for a user in a conversation
+  /// Mark messages as read for a user in a chat (compatible with web app)
   Future<void> markMessagesAsRead({
-    required String conversationId,
+    required String chatId,
     required String userId,
   }) async {
-    // Reset unread count for this user
-    await _conversationsRef.doc(conversationId).update({
-      'unreadCount.$userId': 0,
+    // Get conversation to determine if user is host or guest
+    final conversation = await getConversation(chatId);
+    if (conversation == null) return;
+
+    final isHost = userId == conversation.hostId;
+
+    // Update readByHost or readByGuest flag
+    await _chatsRef.doc(chatId).update({
+      if (isHost) 'readByHost': true else 'readByGuest': true,
     });
 
     // Mark individual messages as read
-    final unreadMessages = await _messagesRef(conversationId)
-        .where('isRead', isEqualTo: false)
+    final unreadMessages = await _messagesRef(chatId)
+        .where('read', isEqualTo: false)
         .where('senderId', isNotEqualTo: userId)
         .get();
 
     final batch = _firestore.batch();
     for (final doc in unreadMessages.docs) {
       batch.update(doc.reference, {
-        'isRead': true,
-        'readAt': DateTime.now().toIso8601String(),
+        'read': true,
+        'readAt': FieldValue.serverTimestamp(),
       });
     }
     await batch.commit();
   }
 
-  /// Get total unread count for a user across all conversations
+  /// Get total unread count for a user across all chats
+  /// Uses web app's readByHost/readByGuest structure
   Stream<int> getTotalUnreadCountStream(String userId) {
-    return _conversationsRef
-        .where('participantIds', arrayContains: userId)
-        .snapshots()
-        .map((snapshot) {
-      int total = 0;
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final unreadCount = data['unreadCount'] as Map<String, dynamic>?;
-        if (unreadCount != null && unreadCount[userId] != null) {
-          total += (unreadCount[userId] as num).toInt();
+    // We need to combine both host and guest queries
+    final hostChatsStream = _chatsRef.where('hostId', isEqualTo: userId).snapshots();
+    final guestChatsStream = _chatsRef.where('guestId', isEqualTo: userId).snapshots();
+
+    return hostChatsStream.asyncExpand((hostSnapshot) {
+      return guestChatsStream.map((guestSnapshot) {
+        int total = 0;
+
+        // Count unread for chats where user is host
+        for (final doc in hostSnapshot.docs) {
+          final data = doc.data();
+          final deletedBy = List<String>.from(data['deletedBy'] ?? []);
+          if (!deletedBy.contains(userId) && data['readByHost'] == false) {
+            total += 1;
+          }
         }
-      }
-      return total;
+
+        // Count unread for chats where user is guest
+        for (final doc in guestSnapshot.docs) {
+          final data = doc.data();
+          final deletedBy = List<String>.from(data['deletedBy'] ?? []);
+          if (!deletedBy.contains(userId) && data['readByGuest'] == false) {
+            total += 1;
+          }
+        }
+
+        return total;
+      });
     });
   }
 
-  /// Delete a conversation
-  Future<void> deleteConversation(String conversationId) async {
-    // Delete all messages first
-    final messages = await _messagesRef(conversationId).get();
-    final batch = _firestore.batch();
-    for (final doc in messages.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
+  /// Hide a conversation for a user (soft delete using deletedBy array)
+  /// Compatible with web app's delete behavior
+  Future<void> deleteConversation(String chatId, String userId) async {
+    await _chatsRef.doc(chatId).update({
+      'deletedBy': FieldValue.arrayUnion([userId]),
+    });
+  }
 
-    // Delete conversation
-    await _conversationsRef.doc(conversationId).delete();
+  /// Archive a conversation for a specific user
+  Future<void> archiveConversation({
+    required String chatId,
+    required String userId,
+  }) async {
+    await _chatsRef.doc(chatId).update({
+      'archivedBy.$userId': true,
+    });
+  }
+
+  /// Unarchive a conversation for a specific user
+  Future<void> unarchiveConversation({
+    required String chatId,
+    required String userId,
+  }) async {
+    await _chatsRef.doc(chatId).update({
+      'archivedBy.$userId': false,
+    });
   }
 }

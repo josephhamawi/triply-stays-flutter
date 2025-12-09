@@ -162,7 +162,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Send email verification code
   Future<bool> sendEmailVerificationCode() async {
     final email = state.user?.email;
-    if (email == null) return false;
+    if (email == null) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Unable to send verification code. Please sign in again.',
+      );
+      return false;
+    }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -174,7 +180,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       },
       onFailure: (failure) {
-        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        // Provide user-friendly error messages
+        String errorMessage = failure.message;
+        if (failure.message.contains('not configured')) {
+          errorMessage = 'Email service is temporarily unavailable. Please try again later.';
+        } else if (failure.message.contains('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+        state = state.copyWith(isLoading: false, errorMessage: errorMessage);
         return false;
       },
     );

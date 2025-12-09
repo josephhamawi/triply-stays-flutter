@@ -33,11 +33,47 @@ class _ListingCardState extends ConsumerState<ListingCard> {
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
   bool _isProcessing = false; // Prevent multiple taps
+  bool _imagesPreloaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Preload all images when card is first built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadImages();
+    });
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Preload all images for smooth swiping
+  void _preloadImages() {
+    if (_imagesPreloaded) return;
+    _imagesPreloaded = true;
+    final images = widget.listing.images;
+    for (final imageUrl in images) {
+      precacheImage(
+        CachedNetworkImageProvider(
+          imageUrl,
+          maxWidth: 800,
+        ),
+        context,
+      );
+    }
+  }
+
+  /// Format large numbers (e.g., 1200 -> 1.2k)
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return count.toString();
   }
 
   @override
@@ -69,9 +105,10 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                 // Image section with page indicator
                 Stack(
                   children: [
-                    // Image carousel
-                    AspectRatio(
-                      aspectRatio: 4 / 3,
+                    // Image carousel - fixed height with proper image fitting
+                    SizedBox(
+                      height: 220,
+                      width: double.infinity,
                       child: images.isEmpty
                           ? Container(
                               color: AppColors.backgroundLight,
@@ -91,6 +128,11 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                                 return CachedNetworkImage(
                                   imageUrl: images[index],
                                   fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 220,
+                                  memCacheWidth: 800,
+                                  fadeInDuration: const Duration(milliseconds: 150),
+                                  fadeOutDuration: const Duration(milliseconds: 150),
                                   placeholder: (context, url) => Container(
                                     color: AppColors.backgroundLight,
                                     child: const Center(
@@ -231,6 +273,18 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                             value: '${widget.listing.maxGuests}',
                           ),
                           const Spacer(),
+                          // Views count
+                          _StatChip(
+                            icon: Icons.visibility_outlined,
+                            value: _formatCount(widget.listing.viewCount),
+                          ),
+                          const SizedBox(width: 8),
+                          // Likes count
+                          _StatChip(
+                            icon: Icons.favorite_border,
+                            value: _formatCount(widget.listing.likesCount),
+                          ),
+                          const SizedBox(width: 8),
                           // Rating
                           if (widget.listing.averageRating != null)
                             Row(

@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../widgets/auth/auth_text_field.dart';
-import '../../widgets/auth/social_sign_in_button.dart';
 
 /// Sign up screen for new user registration
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -31,8 +30,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _acceptedTerms = false;
-  bool _isGoogleLoading = false;
-  bool _isAppleLoading = false;
 
   @override
   void dispose() {
@@ -118,54 +115,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isGoogleLoading = true);
-
-    await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
-
-      final state = ref.read(authNotifierProvider);
-      if (state.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(state.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      } else if (state.user != null) {
-        widget.onSuccess?.call();
-      }
-    }
-  }
-
-  Future<void> _handleAppleSignIn() async {
-    setState(() => _isAppleLoading = true);
-
-    await ref.read(authNotifierProvider.notifier).signInWithApple();
-
-    if (mounted) {
-      setState(() => _isAppleLoading = false);
-
-      final state = ref.read(authNotifierProvider);
-      if (state.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(state.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      } else if (state.user != null) {
-        widget.onSuccess?.call();
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final isLoading = authState.isLoading || _isGoogleLoading || _isAppleLoading;
+    final isLoading = authState.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -197,24 +150,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Social sign in buttons
-                SocialSignInButton.google(
-                  onPressed: isLoading ? null : _handleGoogleSignIn,
-                  isLoading: _isGoogleLoading,
-                ),
-                const SizedBox(height: 12),
-                if (Theme.of(context).platform == TargetPlatform.iOS) ...[
-                  SocialSignInButton.apple(
-                    onPressed: isLoading ? null : _handleAppleSignIn,
-                    isLoading: _isAppleLoading,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                const SizedBox(height: 8),
-                const OrDivider(),
-                const SizedBox(height: 24),
 
                 // Name field
                 AuthTextField(
@@ -283,6 +218,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 });
                               },
                         activeColor: AppColors.primaryOrange,
+                        checkColor: Colors.white,
+                        side: BorderSide(
+                          color: _acceptedTerms
+                              ? AppColors.primaryOrange
+                              : AppColors.textSecondary,
+                          width: 2,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),

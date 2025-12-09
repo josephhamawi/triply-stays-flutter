@@ -17,6 +17,7 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
+  bool _isNavigating = false; // Prevent double updates during navigation
 
   final List<_NavItem> _navItems = const [
     _NavItem(
@@ -53,9 +54,14 @@ class _MainShellState extends ConsumerState<MainShell> {
   ];
 
   void _onNavTap(int index) {
-    if (_currentIndex == index) return;
+    if (_currentIndex == index || _isNavigating) return;
+    _isNavigating = true;
     setState(() => _currentIndex = index);
     context.go(_navItems[index].path);
+    // Reset flag after navigation completes
+    Future.microtask(() {
+      if (mounted) _isNavigating = false;
+    });
   }
 
   @override
@@ -71,6 +77,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   void _updateIndexFromLocation() {
+    // Skip if we're in the middle of programmatic navigation
+    if (_isNavigating) return;
+
     final location = GoRouterState.of(context).matchedLocation;
     for (int i = 0; i < _navItems.length; i++) {
       if (_navItems[i].path.isNotEmpty && location.startsWith(_navItems[i].path)) {

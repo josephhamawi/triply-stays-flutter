@@ -628,17 +628,30 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
                 maxLength: 6,
                 decoration: InputDecoration(
                   labelText: 'Verification Code',
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                   hintText: '000000',
+                  hintStyle: TextStyle(color: AppColors.textLight),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
                   counterText: '',
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 24,
                   letterSpacing: 8,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -842,13 +855,29 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Phone Number',
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                   hintText: '+1234567890',
-                  prefixIcon: const Icon(Icons.phone_outlined),
+                  hintStyle: TextStyle(color: AppColors.textLight),
+                  prefixIcon: Icon(Icons.phone_outlined, color: AppColors.textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
               ),
               const SizedBox(height: 16),
@@ -860,17 +889,30 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
                 maxLength: 6,
                 decoration: InputDecoration(
                   labelText: 'Verification Code',
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
                   hintText: '000000',
+                  hintStyle: TextStyle(color: AppColors.textLight),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
                   counterText: '',
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 24,
                   letterSpacing: 8,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 16),

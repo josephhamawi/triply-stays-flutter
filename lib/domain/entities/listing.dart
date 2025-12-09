@@ -14,7 +14,7 @@ class Listing {
   final String? hostPhone;
   final bool hostHasWhatsApp;
   final String? category;
-  final String? view;
+  final List<String> listingViews;  // Multi-select views (sea, mountain, city, etc.)
   final List<String> amenities;
   final String? rules;
   final int bedrooms;
@@ -28,7 +28,7 @@ class Listing {
   final String status;
   final DateTime createdAt;
   final int likesCount;
-  final int views;
+  final int viewCount;  // Renamed to avoid conflict with listingViews
   final double? averageRating;
   final int reviewCount;
 
@@ -47,7 +47,7 @@ class Listing {
     this.hostPhone,
     this.hostHasWhatsApp = false,
     this.category,
-    this.view,
+    this.listingViews = const [],
     this.amenities = const [],
     this.rules,
     this.bedrooms = 1,
@@ -61,7 +61,7 @@ class Listing {
     this.status = 'active',
     required this.createdAt,
     this.likesCount = 0,
-    this.views = 0,
+    this.viewCount = 0,
     this.averageRating,
     this.reviewCount = 0,
   });
@@ -92,7 +92,7 @@ class Listing {
     String? hostPhone,
     bool? hostHasWhatsApp,
     String? category,
-    String? view,
+    List<String>? listingViews,
     List<String>? amenities,
     String? rules,
     int? bedrooms,
@@ -106,7 +106,7 @@ class Listing {
     String? status,
     DateTime? createdAt,
     int? likesCount,
-    int? views,
+    int? viewCount,
     double? averageRating,
     int? reviewCount,
   }) {
@@ -125,7 +125,7 @@ class Listing {
       hostPhone: hostPhone ?? this.hostPhone,
       hostHasWhatsApp: hostHasWhatsApp ?? this.hostHasWhatsApp,
       category: category ?? this.category,
-      view: view ?? this.view,
+      listingViews: listingViews ?? this.listingViews,
       amenities: amenities ?? this.amenities,
       rules: rules ?? this.rules,
       bedrooms: bedrooms ?? this.bedrooms,
@@ -139,7 +139,7 @@ class Listing {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       likesCount: likesCount ?? this.likesCount,
-      views: views ?? this.views,
+      viewCount: viewCount ?? this.viewCount,
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
     );

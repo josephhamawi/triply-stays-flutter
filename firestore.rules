@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to get the current user ID
+    function userId() {
+      return request.auth.uid;
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && userId() == uid;
+    }
+
+    // Listings collection
+    match /listings/{listingId} {
+      allow read: if true; // Public read
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() &&
+        (resource.data.hostId == userId() || resource.data.userId == userId());
+    }
+
+    // Conversations collection
+    match /conversations/{conversationId} {
+      // Allow read/write if user is a participant
+      allow read: if isAuthenticated() &&
+        userId() in resource.data.participantIds;
+      allow create: if isAuthenticated() &&
+        userId() in request.resource.data.participantIds;
+      allow update: if isAuthenticated() &&
+        userId() in resource.data.participantIds;
+      allow delete: if isAuthenticated() &&
+        userId() in resource.data.participantIds;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          userId() in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow create: if isAuthenticated() &&
+          userId() in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+          request.resource.data.senderId == userId();
+        allow update: if isAuthenticated() &&
+          userId() in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+      }
+    }
+
+    // Verification codes (email verification)
+    match /verificationCodes/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Likes collection
+    match /likes/{likeId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && resource.data.userId == userId();
+    }
+  }
+}

@@ -151,6 +151,12 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   _buildQuickStats(listing),
                   const SizedBox(height: 24),
 
+                  // Views
+                  if (listing.listingViews.isNotEmpty) ...[
+                    _buildViewBadges(listing.listingViews),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Description
                   const Text(
                     'About this place',
@@ -413,6 +419,53 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       width: 1,
       height: 40,
       color: AppColors.borderLight,
+    );
+  }
+
+  Widget _buildViewBadges(List<String> views) {
+    final viewIcons = {
+      'sea': Icons.water,
+      'mountain': Icons.terrain,
+      'city': Icons.location_city,
+      'garden': Icons.park,
+      'pool': Icons.pool,
+      'forest': Icons.forest,
+      'lake': Icons.water_drop,
+      'beach': Icons.beach_access,
+    };
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: views.map((view) {
+        final viewLower = view.toLowerCase();
+        final icon = viewIcons[viewLower] ?? Icons.visibility;
+        final displayName = '${view[0].toUpperCase()}${view.substring(1)} View';
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryOrange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.primaryOrange.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: AppColors.primaryOrange),
+              const SizedBox(width: 6),
+              Text(
+                displayName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.primaryOrange,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -763,7 +816,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
   void _startChat(Listing listing) {
     // Navigate to messages screen or start a new chat
-    context.push('/messages'); // For now, go to messages
+    context.go('/messages'); // Use go() for shell routes, not push()
     // TODO: Implement direct chat with host
   }
 

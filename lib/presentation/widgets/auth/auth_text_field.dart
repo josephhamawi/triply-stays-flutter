@@ -59,6 +59,21 @@ class _AuthTextFieldState extends State<AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
+    // Wrap prefixIcon with explicit color if it's an Icon widget
+    Widget? styledPrefixIcon;
+    if (widget.prefixIcon != null) {
+      if (widget.prefixIcon is Icon) {
+        final icon = widget.prefixIcon as Icon;
+        styledPrefixIcon = Icon(
+          icon.icon,
+          color: AppColors.primaryOrange,
+          size: icon.size ?? 22,
+        );
+      } else {
+        styledPrefixIcon = widget.prefixIcon;
+      }
+    }
+
     return TextFormField(
       controller: widget.controller,
       focusNode: widget.focusNode,
@@ -80,12 +95,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
-        prefixIcon: widget.prefixIcon,
+        labelStyle: TextStyle(color: AppColors.textSecondary),
+        hintStyle: TextStyle(color: AppColors.textLight),
+        prefixIcon: styledPrefixIcon,
         suffixIcon: widget.obscureText
             ? IconButton(
                 icon: Icon(
                   _obscureText ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.textLight,
+                  color: AppColors.textSecondary,
                 ),
                 onPressed: () {
                   setState(() {
@@ -95,6 +112,29 @@ class _AuthTextFieldState extends State<AuthTextField> {
               )
             : widget.suffixIcon,
         counterText: '',
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.error, width: 2),
+        ),
       ),
     );
   }
@@ -196,17 +236,42 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hint,
-            prefixIcon: const Icon(Icons.lock_outline),
+            labelStyle: TextStyle(color: AppColors.textSecondary),
+            hintStyle: TextStyle(color: AppColors.textLight),
+            prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primaryOrange),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscureText ? Icons.visibility_off : Icons.visibility,
-                color: AppColors.textLight,
+                color: AppColors.textSecondary,
               ),
               onPressed: () {
                 setState(() {
                   _obscureText = !_obscureText;
                 });
               },
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.borderLight),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.borderLight),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.error, width: 2),
             ),
           ),
         ),

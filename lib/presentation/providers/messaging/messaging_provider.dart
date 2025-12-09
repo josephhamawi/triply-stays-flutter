@@ -56,6 +56,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
   MessagingNotifier(this._repository, this._ref) : super(const AsyncValue.data(null));
 
   /// Get or create a conversation for a listing inquiry
+  /// The isCurrentUserHost parameter determines the chat ID format
   Future<Conversation?> startConversation({
     required String otherUserId,
     required String otherUserName,
@@ -63,6 +64,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
     String? listingId,
     String? listingTitle,
     String? listingImageUrl,
+    bool isCurrentUserHost = false,
   }) async {
     final authState = _ref.read(authNotifierProvider);
     final currentUser = authState.user;
@@ -82,6 +84,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
         listingId: listingId,
         listingTitle: listingTitle,
         listingImageUrl: listingImageUrl,
+        isCurrentUserHost: isCurrentUserHost,
       );
 
       state = const AsyncValue.data(null);
@@ -94,7 +97,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
 
   /// Send a message
   Future<Message?> sendMessage({
-    required String conversationId,
+    required String chatId,
     required String content,
     MessageType type = MessageType.text,
   }) async {
@@ -105,7 +108,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
 
     try {
       final message = await _repository.sendMessage(
-        conversationId: conversationId,
+        chatId: chatId,
         senderId: currentUser.id,
         senderName: currentUser.fullName ?? currentUser.email,
         senderPhotoUrl: currentUser.photoUrl,
@@ -120,7 +123,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
   }
 
   /// Mark messages as read
-  Future<void> markAsRead(String conversationId) async {
+  Future<void> markAsRead(String chatId) async {
     final authState = _ref.read(authNotifierProvider);
     final userId = authState.user?.id;
 
@@ -128,7 +131,7 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
 
     try {
       await _repository.markMessagesAsRead(
-        conversationId: conversationId,
+        chatId: chatId,
         userId: userId,
       );
     } catch (e) {
@@ -136,12 +139,61 @@ class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  /// Delete a conversation
-  Future<bool> deleteConversation(String conversationId) async {
+  /// Delete a conversation (soft delete - adds to deletedBy array)
+  Future<bool> deleteConversation(String chatId) async {
+    final authState = _ref.read(authNotifierProvider);
+    final userId = authState.user?.id;
+
+    if (userId == null) return false;
+
     state = const AsyncValue.loading();
 
     try {
-      await _repository.deleteConversation(conversationId);
+      await _repository.deleteConversation(chatId, userId);
+      state = const AsyncValue.data(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  /// Archive a conversation
+  Future<bool> archiveConversation(String chatId) async {
+    final authState = _ref.read(authNotifierProvider);
+    final userId = authState.user?.id;
+
+    if (userId == null) return false;
+
+    state = const AsyncValue.loading();
+
+    try {
+      await _repository.archiveConversation(
+        chatId: chatId,
+        userId: userId,
+      );
+      state = const AsyncValue.data(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  /// Unarchive a conversation
+  Future<bool> unarchiveConversation(String chatId) async {
+    final authState = _ref.read(authNotifierProvider);
+    final userId = authState.user?.id;
+
+    if (userId == null) return false;
+
+    state = const AsyncValue.loading();
+
+    try {
+      await _repository.unarchiveConversation(
+        chatId: chatId,
+        userId: userId,
+      );
       state = const AsyncValue.data(null);
       return true;
     } catch (e, st) {

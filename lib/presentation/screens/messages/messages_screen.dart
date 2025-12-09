@@ -10,11 +10,18 @@ import '../../providers/auth/auth_provider.dart';
 import '../../providers/messaging/messaging_provider.dart';
 
 /// Messages/Chat list screen
-class MessagesScreen extends ConsumerWidget {
+class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends ConsumerState<MessagesScreen> {
+  bool _showArchived = false;
+
+  @override
+  Widget build(BuildContext context) {
     final conversationsAsync = ref.watch(conversationsProvider);
     final authState = ref.watch(authNotifierProvider);
     final currentUserId = authState.user?.id;
@@ -25,16 +32,45 @@ class MessagesScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Messages',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
+            // Header with Archive toggle
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Messages',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  // Show Archive button
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showArchived = !_showArchived;
+                      });
+                    },
+                    icon: Icon(
+                      _showArchived ? Icons.inbox : Icons.archive_outlined,
+                      size: 18,
+                      color: AppColors.primaryOrange,
+                    ),
+                    label: Text(
+                      _showArchived ? 'Show Inbox' : 'Show Archive',
+                      style: const TextStyle(
+                        color: AppColors.primaryOrange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -42,12 +78,19 @@ class MessagesScreen extends ConsumerWidget {
             Expanded(
               child: conversationsAsync.when(
                 data: (conversations) {
-                  if (conversations.isEmpty) {
+                  // Filter conversations based on archive state
+                  final filteredConversations = conversations.where((conv) {
+                    final isArchived = currentUserId != null && conv.isArchivedFor(currentUserId);
+                    return _showArchived ? isArchived : !isArchived;
+                  }).toList();
+
+                  if (filteredConversations.isEmpty) {
                     return _buildEmptyState();
                   }
                   return _buildConversationsList(
                     context,
-                    conversations,
+                    ref,
+                    filteredConversations,
                     currentUserId,
                   );
                 },
@@ -97,23 +140,25 @@ class MessagesScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.chat_bubble_outline,
+            _showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline,
             size: 80,
             color: AppColors.textLight.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'No messages yet',
-            style: TextStyle(
+          Text(
+            _showArchived ? 'No archived messages' : 'No messages yet',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Start a conversation with a host\nto see your messages here',
-            style: TextStyle(
+          Text(
+            _showArchived
+                ? 'Archived conversations will appear here'
+                : 'Start a conversation with a host\nto see your messages here',
+            style: const TextStyle(
               color: AppColors.textSecondary,
             ),
             textAlign: TextAlign.center,
@@ -125,6 +170,7 @@ class MessagesScreen extends ConsumerWidget {
 
   Widget _buildConversationsList(
     BuildContext context,
+    WidgetRef ref,
     List<Conversation> conversations,
     String? currentUserId,
   ) {
@@ -143,9 +189,87 @@ class MessagesScreen extends ConsumerWidget {
           onTap: () {
             context.push('/chat/${conversation.id}');
           },
+          onDelete: () => _showDeleteConfirmation(context, ref, conversation),
+          onArchive: () => _archiveConversation(context, ref, conversation),
         );
       },
     );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+    Conversation conversation,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Conversation'),
+        content: const Text(
+          'Are you sure you want to delete this conversation? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final success = await ref
+                  .read(messagingNotifierProvider.notifier)
+                  .deleteConversation(conversation.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Conversation deleted'
+                          : 'Failed to delete conversation',
+                    ),
+                    backgroundColor:
+                        success ? AppColors.success : AppColors.error,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _archiveConversation(
+    BuildContext context,
+    WidgetRef ref,
+    Conversation conversation,
+  ) async {
+    final success = await ref
+        .read(messagingNotifierProvider.notifier)
+        .archiveConversation(conversation.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Conversation archived' : 'Failed to archive conversation',
+          ),
+          backgroundColor: success ? AppColors.success : AppColors.error,
+          action: success
+              ? SnackBarAction(
+                  label: 'Undo',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ref
+                        .read(messagingNotifierProvider.notifier)
+                        .unarchiveConversation(conversation.id);
+                  },
+                )
+              : null,
+        ),
+      );
+    }
   }
 }
 
@@ -154,11 +278,15 @@ class _ConversationTile extends StatelessWidget {
   final Conversation conversation;
   final String currentUserId;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onArchive;
 
   const _ConversationTile({
     required this.conversation,
     required this.currentUserId,
     required this.onTap,
+    required this.onDelete,
+    required this.onArchive,
   });
 
   @override
@@ -167,110 +295,162 @@ class _ConversationTile extends StatelessWidget {
     final unreadCount = conversation.getUnreadCount(currentUserId);
     final hasUnread = unreadCount > 0;
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
+    return Dismissible(
+      key: Key(conversation.id),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          // Delete action - show confirmation
+          onDelete();
+          return false; // Don't dismiss, let the dialog handle it
+        } else if (direction == DismissDirection.startToEnd) {
+          // Archive action
+          onArchive();
+          return false; // Don't dismiss, let the callback handle it
+        }
+        return false;
+      },
+      background: Container(
+        color: Colors.amber.shade700,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Row(
           children: [
-            // Avatar
-            _buildAvatar(otherParticipant),
-            const SizedBox(width: 12),
+            Icon(Icons.archive, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              'Archive',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
+        color: AppColors.error,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.delete, color: Colors.white),
+          ],
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              // Avatar
+              _buildAvatar(otherParticipant),
+              const SizedBox(width: 12),
 
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name and time row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          otherParticipant?.name ?? 'User',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (conversation.lastMessageAt != null)
-                        Text(
-                          _formatTime(conversation.lastMessageAt!),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: hasUnread
-                                ? AppColors.primaryOrange
-                                : AppColors.textSecondary,
-                            fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name and time row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            otherParticipant?.name ?? 'User',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                        if (conversation.lastMessageAt != null)
+                          Text(
+                            _formatTime(conversation.lastMessageAt!),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasUnread
+                                  ? AppColors.primaryOrange
+                                  : AppColors.textSecondary,
+                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
 
-                  // Last message and unread badge row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Listing title if applicable
-                            if (conversation.listingTitle != null)
+                    // Last message and unread badge row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Listing title if applicable
+                              if (conversation.listingTitle != null)
+                                Text(
+                                  conversation.listingTitle!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.primaryOrange,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              // Last message
                               Text(
-                                conversation.listingTitle!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primaryOrange,
-                                  fontWeight: FontWeight.w500,
+                                conversation.lastMessage ?? 'No messages yet',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: hasUnread
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                                  fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            // Last message
-                            Text(
-                              conversation.lastMessage ?? 'No messages yet',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: hasUnread
-                                    ? AppColors.textPrimary
-                                    : AppColors.textSecondary,
-                                fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Unread badge
-                      if (hasUnread)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryOrange,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            unreadCount > 99 ? '99+' : unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                        // Unread badge
+                        if (hasUnread)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryOrange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

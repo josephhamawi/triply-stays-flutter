@@ -18,7 +18,7 @@ class ListingModel extends Listing {
     super.hostPhone,
     super.hostHasWhatsApp,
     super.category,
-    super.view,
+    super.listingViews,
     super.amenities,
     super.rules,
     super.bedrooms,
@@ -32,7 +32,7 @@ class ListingModel extends Listing {
     super.status,
     required super.createdAt,
     super.likesCount,
-    super.views,
+    super.viewCount,
     super.averageRating,
     super.reviewCount,
   });
@@ -73,6 +73,18 @@ class ListingModel extends Listing {
       createdAt = DateTime.now();
     }
 
+    // Handle backward compatibility: convert old single 'view' to 'views' array
+    List<String> listingViews;
+    if (data['views'] != null && data['views'] is List) {
+      // New format: views is an array
+      listingViews = List<String>.from(data['views']);
+    } else if (data['view'] != null && data['view'] is String && data['view'] != 'no-view') {
+      // Old format: single view string - convert to array
+      listingViews = [data['view'] as String];
+    } else {
+      listingViews = [];
+    }
+
     return ListingModel(
       id: doc.id,
       title: data['title'] ?? '',
@@ -88,7 +100,7 @@ class ListingModel extends Listing {
       hostPhone: data['hostPhone'],
       hostHasWhatsApp: data['hostHasWhatsApp'] == true,
       category: data['category'],
-      view: data['view'],
+      listingViews: listingViews,
       amenities: List<String>.from(data['amenities'] ?? []),
       rules: data['rules'],
       bedrooms: _parseInt(data['bedrooms']) ?? 1,
@@ -102,7 +114,7 @@ class ListingModel extends Listing {
       status: data['status'] ?? 'active',
       createdAt: createdAt,
       likesCount: _parseInt(data['likesCount']) ?? 0,
-      views: _parseInt(data['views']) ?? 0,
+      viewCount: _parseInt(data['viewCount']) ?? _parseInt(data['views']) ?? 0,
       averageRating: _parseDouble(data['averageRating']),
       reviewCount: _parseInt(data['reviewCount']) ?? 0,
     );
@@ -124,7 +136,7 @@ class ListingModel extends Listing {
       'hostPhone': hostPhone,
       'hostHasWhatsApp': hostHasWhatsApp,
       'category': category,
-      'view': view,
+      'views': listingViews,  // Store as 'views' array for web app compatibility
       'amenities': amenities,
       'rules': rules,
       'bedrooms': bedrooms,
@@ -139,7 +151,7 @@ class ListingModel extends Listing {
       'status': status,
       'createdAt': FieldValue.serverTimestamp(),
       'likesCount': likesCount,
-      'views': views,
+      'viewCount': viewCount,
       'averageRating': averageRating,
       'reviewCount': reviewCount,
     };
@@ -162,7 +174,7 @@ class ListingModel extends Listing {
       hostPhone: listing.hostPhone,
       hostHasWhatsApp: listing.hostHasWhatsApp,
       category: listing.category,
-      view: listing.view,
+      listingViews: listing.listingViews,
       amenities: listing.amenities,
       rules: listing.rules,
       bedrooms: listing.bedrooms,
@@ -176,7 +188,7 @@ class ListingModel extends Listing {
       status: listing.status,
       createdAt: listing.createdAt,
       likesCount: listing.likesCount,
-      views: listing.views,
+      viewCount: listing.viewCount,
       averageRating: listing.averageRating,
       reviewCount: listing.reviewCount,
     );

@@ -55,5 +55,11 @@
 		<string>tel</string>
 		<string>mailto</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Triply Stays uses Face ID for quick and secure sign-in.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Triply Stays needs your location to show nearby properties and provide accurate directions to listings.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Triply Stays needs your location to show nearby properties and provide accurate directions to listings.</string>
 </dict>
 </plist>

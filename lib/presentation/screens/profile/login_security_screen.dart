@@ -400,14 +400,20 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               TextFormField(
                 controller: _currentPasswordController,
                 obscureText: _obscureCurrentPassword,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Current Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureCurrentPassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondary,
                     ),
                     onPressed: () {
                       setState(() {
@@ -418,6 +424,16 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -432,14 +448,20 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: _obscureNewPassword,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
                 decoration: InputDecoration(
                   labelText: 'New Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureNewPassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondary,
                     ),
                     onPressed: () {
                       setState(() {
@@ -450,6 +472,16 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -467,14 +499,20 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Confirm New Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondary,
                     ),
                     onPressed: () {
                       setState(() {
@@ -485,6 +523,16 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {

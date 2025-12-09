@@ -52,7 +52,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageController.clear();
 
     await ref.read(messagingNotifierProvider.notifier).sendMessage(
-          conversationId: widget.conversationId,
+          chatId: widget.conversationId,
           content: content,
         );
 

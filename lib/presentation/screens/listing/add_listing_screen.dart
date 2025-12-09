@@ -347,16 +347,40 @@ class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
             error: (_, __) => const Text('Failed to load categories'),
           ),
           const SizedBox(height: 16),
-          _buildSectionTitle('View'),
+          _buildSectionTitle('Views'),
+          const SizedBox(height: 4),
+          Text(
+            'Select all views that apply',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           viewsAsync.when(
-            data: (views) => _buildDropdown(
-              value: state.formData.view.isEmpty ? null : state.formData.view,
-              hint: 'Select the main view',
-              items: views,
-              onChanged: (value) => notifier.updateFormData(
-                (data) => data.copyWith(view: value ?? ''),
-              ),
+            data: (views) => Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: views.map((view) {
+                final isSelected = state.formData.listingViews.contains(view);
+                return FilterChip(
+                  label: Text('$view View'),
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppColors.primaryOrange : AppColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  selected: isSelected,
+                  onSelected: (_) => notifier.toggleView(view),
+                  selectedColor: AppColors.primaryOrange.withOpacity(0.2),
+                  checkmarkColor: AppColors.primaryOrange,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primaryOrange
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
             loading: () => const CircularProgressIndicator(),
             error: (_, __) => const Text('Failed to load views'),
@@ -593,6 +617,10 @@ class _AmenitiesStep extends ConsumerWidget {
                 final isSelected = state.formData.amenities.contains(amenity);
                 return FilterChip(
                   label: Text(amenity),
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppColors.primaryOrange : AppColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
                   selected: isSelected,
                   onSelected: (_) => notifier.toggleAmenity(amenity),
                   selectedColor: AppColors.primaryOrange.withOpacity(0.2),
@@ -841,7 +869,12 @@ class _ReviewStep extends ConsumerWidget {
           _buildReviewCard([
             _buildReviewRow('Title', formData.title),
             _buildReviewRow('Category', formData.category),
-            _buildReviewRow('View', formData.view),
+            _buildReviewRow(
+              'Views',
+              formData.listingViews.isEmpty
+                  ? 'None selected'
+                  : formData.listingViews.map((v) => '$v View').join(', '),
+            ),
           ]),
           const SizedBox(height: 16),
           _buildReviewCard([
@@ -1014,13 +1047,24 @@ Widget _buildDropdown({
     child: DropdownButtonHideUnderline(
       child: DropdownButton<String>(
         value: value,
-        hint: Text(hint),
+        hint: Text(
+          hint,
+          style: TextStyle(color: Colors.grey[400]),
+        ),
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 16,
+        ),
         isExpanded: true,
+        dropdownColor: Colors.white,
         items: items.asMap().entries.map((entry) {
           final label = itemLabels != null ? itemLabels[entry.key] : entry.value;
           return DropdownMenuItem(
             value: entry.value,
-            child: Text(label),
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
           );
         }).toList(),
         onChanged: onChanged,

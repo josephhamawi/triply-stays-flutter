@@ -31,11 +31,14 @@ class ConversationParticipant {
 }
 
 /// Conversation entity representing a chat thread between users
+/// Compatible with web app's 'chats' collection structure
 @immutable
 class Conversation {
   final String id;
   final List<String> participantIds;
   final Map<String, ConversationParticipant> participants;
+  final String? hostId;
+  final String? guestId;
   final String? listingId;
   final String? listingTitle;
   final String? listingImageUrl;
@@ -43,6 +46,10 @@ class Conversation {
   final DateTime? lastMessageAt;
   final String? lastMessageSenderId;
   final Map<String, int> unreadCount;
+  final Map<String, bool> archivedBy;
+  final bool readByHost;
+  final bool readByGuest;
+  final List<String> deletedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -50,6 +57,8 @@ class Conversation {
     required this.id,
     required this.participantIds,
     required this.participants,
+    this.hostId,
+    this.guestId,
     this.listingId,
     this.listingTitle,
     this.listingImageUrl,
@@ -57,9 +66,33 @@ class Conversation {
     this.lastMessageAt,
     this.lastMessageSenderId,
     this.unreadCount = const {},
+    this.archivedBy = const {},
+    this.readByHost = true,
+    this.readByGuest = true,
+    this.deletedBy = const [],
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Check if conversation is archived for a specific user
+  bool isArchivedFor(String userId) {
+    return archivedBy[userId] == true;
+  }
+
+  /// Check if conversation is deleted for a specific user
+  bool isDeletedFor(String userId) {
+    return deletedBy.contains(userId);
+  }
+
+  /// Check if there are unread messages for this user
+  bool hasUnreadFor(String userId) {
+    if (hostId == userId) {
+      return !readByHost;
+    } else if (guestId == userId) {
+      return !readByGuest;
+    }
+    return false;
+  }
 
   /// Get the other participant for a 1-on-1 conversation
   ConversationParticipant? getOtherParticipant(String currentUserId) {
@@ -80,6 +113,8 @@ class Conversation {
     String? id,
     List<String>? participantIds,
     Map<String, ConversationParticipant>? participants,
+    String? hostId,
+    String? guestId,
     String? listingId,
     String? listingTitle,
     String? listingImageUrl,
@@ -87,6 +122,10 @@ class Conversation {
     DateTime? lastMessageAt,
     String? lastMessageSenderId,
     Map<String, int>? unreadCount,
+    Map<String, bool>? archivedBy,
+    bool? readByHost,
+    bool? readByGuest,
+    List<String>? deletedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -94,6 +133,8 @@ class Conversation {
       id: id ?? this.id,
       participantIds: participantIds ?? this.participantIds,
       participants: participants ?? this.participants,
+      hostId: hostId ?? this.hostId,
+      guestId: guestId ?? this.guestId,
       listingId: listingId ?? this.listingId,
       listingTitle: listingTitle ?? this.listingTitle,
       listingImageUrl: listingImageUrl ?? this.listingImageUrl,
@@ -101,63 +142,101 @@ class Conversation {
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       lastMessageSenderId: lastMessageSenderId ?? this.lastMessageSenderId,
       unreadCount: unreadCount ?? this.unreadCount,
+      archivedBy: archivedBy ?? this.archivedBy,
+      readByHost: readByHost ?? this.readByHost,
+      readByGuest: readByGuest ?? this.readByGuest,
+      deletedBy: deletedBy ?? this.deletedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  /// Convert to Firestore map
+  /// Convert to Firestore map (compatible with web app)
   Map<String, dynamic> toMap() {
     return {
-      'participantIds': participantIds,
-      'participants': participants.map((k, v) => MapEntry(k, v.toMap())),
+      'hostId': hostId,
+      'guestId': guestId,
+      'hostName': participants[hostId]?.name,
+      'guestName': participants[guestId]?.name,
       'listingId': listingId,
       'listingTitle': listingTitle,
-      'listingImageUrl': listingImageUrl,
       'lastMessage': lastMessage,
-      'lastMessageAt': lastMessageAt?.toIso8601String(),
-      'lastMessageSenderId': lastMessageSenderId,
-      'unreadCount': unreadCount,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'lastMessageSender': lastMessageSenderId,
+      'readByHost': readByHost,
+      'readByGuest': readByGuest,
+      'deletedBy': deletedBy,
     };
   }
 
-  /// Create from Firestore map
+  /// Create from Firestore map (compatible with web app's 'chats' collection)
   factory Conversation.fromMap(String id, Map<String, dynamic> map) {
+    // Extract hostId and guestId from web app structure
+    final hostId = map['hostId'] as String?;
+    final guestId = map['guestId'] as String?;
+    final hostName = map['hostName'] as String? ?? 'Host';
+    final guestName = map['guestName'] as String? ?? 'Guest';
+
+    // Build participantIds from hostId/guestId
+    final participantIds = <String>[];
+    if (hostId != null) participantIds.add(hostId);
+    if (guestId != null) participantIds.add(guestId);
+
+    // Build participants map
     final participantsMap = <String, ConversationParticipant>{};
-    if (map['participants'] != null) {
-      (map['participants'] as Map<String, dynamic>).forEach((key, value) {
-        participantsMap[key] = ConversationParticipant.fromMap(value as Map<String, dynamic>);
-      });
+    if (hostId != null) {
+      participantsMap[hostId] = ConversationParticipant(
+        id: hostId,
+        name: hostName,
+      );
+    }
+    if (guestId != null) {
+      participantsMap[guestId] = ConversationParticipant(
+        id: guestId,
+        name: guestName,
+      );
     }
 
-    final unreadCountMap = <String, int>{};
-    if (map['unreadCount'] != null) {
-      (map['unreadCount'] as Map<String, dynamic>).forEach((key, value) {
-        unreadCountMap[key] = (value as num).toInt();
+    // Parse lastMessageTime from Firestore Timestamp
+    DateTime? lastMessageAt;
+    final lastMessageTime = map['lastMessageTime'];
+    if (lastMessageTime != null) {
+      try {
+        lastMessageAt = (lastMessageTime as dynamic).toDate();
+      } catch (_) {
+        // Fallback if it's already a DateTime or other format
+      }
+    }
+
+    // Parse deletedBy array
+    final deletedBy = List<String>.from(map['deletedBy'] ?? []);
+
+    // Parse archivedBy (custom field for Flutter)
+    final archivedByMap = <String, bool>{};
+    if (map['archivedBy'] != null) {
+      (map['archivedBy'] as Map<String, dynamic>).forEach((key, value) {
+        archivedByMap[key] = value as bool;
       });
     }
 
     return Conversation(
       id: id,
-      participantIds: List<String>.from(map['participantIds'] ?? []),
+      participantIds: participantIds,
       participants: participantsMap,
+      hostId: hostId,
+      guestId: guestId,
       listingId: map['listingId'],
       listingTitle: map['listingTitle'],
-      listingImageUrl: map['listingImageUrl'],
+      listingImageUrl: null,
       lastMessage: map['lastMessage'],
-      lastMessageAt: map['lastMessageAt'] != null
-          ? DateTime.parse(map['lastMessageAt'])
-          : null,
-      lastMessageSenderId: map['lastMessageSenderId'],
-      unreadCount: unreadCountMap,
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'])
-          : DateTime.now(),
+      lastMessageAt: lastMessageAt,
+      lastMessageSenderId: map['lastMessageSender'],
+      unreadCount: const {},
+      archivedBy: archivedByMap,
+      readByHost: map['readByHost'] ?? true,
+      readByGuest: map['readByGuest'] ?? true,
+      deletedBy: deletedBy,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 

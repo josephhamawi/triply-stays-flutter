@@ -265,7 +265,7 @@ class MyListingsScreen extends ConsumerWidget {
                           const Icon(Icons.visibility, color: Colors.white, size: 14),
                           const SizedBox(width: 4),
                           Text(
-                            '${listing.views}',
+                            '${listing.viewCount}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

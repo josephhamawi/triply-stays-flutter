@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/countries_data.dart';
 import '../../../domain/repositories/listing_repository.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/listings_provider.dart';
+import '../../providers/notifications/notification_provider.dart';
 import '../../widgets/common/liquid_orb.dart';
 import '../../widgets/listing/listing_card.dart';
+import '../../widgets/map/listings_map_view.dart';
 
 /// Home screen with listings grid and search
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,6 +34,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   int _minBedrooms = 0;
   int _minBathrooms = 0;
   int _minGuests = 0;
+
+  // View mode: 'grid' or 'map'
+  String _viewMode = 'grid';
+
+  // Country and city filters
+  String? _selectedCountry;
+  String? _selectedCity;
+  List<String> _availableCities = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -75,15 +86,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _applySearch() {
-    final currentFilter = ref.read(listingFilterProvider);
-    ref.read(listingFilterProvider.notifier).state = currentFilter.copyWith(
+    ref.read(listingFilterProvider.notifier).state = ListingFilter(
       searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
       minPrice: _priceRange.start > 0 ? _priceRange.start : null,
       maxPrice: _priceRange.end < 1000 ? _priceRange.end : null,
       minBedrooms: _minBedrooms > 0 ? _minBedrooms : null,
       minBathrooms: _minBathrooms > 0 ? _minBathrooms : null,
       minGuests: _minGuests > 0 ? _minGuests : null,
+      country: _selectedCountry,
+      city: _selectedCity,
     );
+  }
+
+  Future<void> _loadCitiesForCountry(String countryCode) async {
+    final repository = ref.read(listingRepositoryProvider);
+    final cities = await repository.getCitiesForCountry(countryCode);
+    if (mounted) {
+      setState(() {
+        _availableCities = cities;
+      });
+    }
+  }
+
+  void _onCountryChanged(String? countryCode) {
+    setState(() {
+      _selectedCountry = countryCode;
+      _selectedCity = null;
+      _availableCities = [];
+    });
+    if (countryCode != null) {
+      _loadCitiesForCountry(countryCode);
+    }
+    _applySearch();
+  }
+
+  void _onCityChanged(String? city) {
+    setState(() {
+      _selectedCity = city;
+    });
+    _applySearch();
   }
 
   void _clearFilters() {
@@ -92,8 +133,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _minBedrooms = 0;
       _minBathrooms = 0;
       _minGuests = 0;
+      _selectedCountry = null;
+      _selectedCity = null;
+      _availableCities = [];
     });
-    ref.read(listingFilterProvider.notifier).state = const ListingFilter(country: 'LB');
+    ref.read(listingFilterProvider.notifier).state = const ListingFilter();
   }
 
   String _getInitial(dynamic user) {
@@ -146,13 +190,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
 
+              // View Toggle
+              SliverToBoxAdapter(
+                child: _buildViewToggle(),
+              ),
+
               // Section title
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Text(
-                    'Available Properties',
-                    style: TextStyle(
+                    _viewMode == 'map' ? 'Properties on Map' : 'Available Properties',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -161,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
 
-              // Listings
+              // Listings (Grid or Map)
               listingsAsync.when(
                 data: (listings) {
                   if (listings.isEmpty) {
@@ -169,6 +218,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       child: _buildEmptyState(),
                     );
                   }
+
+                  // Map View
+                  if (_viewMode == 'map') {
+                    return SliverFillRemaining(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        child: ListingsMapView(listings: listings),
+                      ),
+                    );
+                  }
+
+                  // Grid View
                   return SliverPadding(
                     padding: const EdgeInsets.only(bottom: 120),
                     sliver: SliverList(
@@ -204,6 +265,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildAppBar(authState) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+
     return SliverAppBar(
       pinned: true,
       floating: false,
@@ -214,28 +277,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       automaticallyImplyLeading: false,
       title: Row(
         children: [
-          // Combined logo with icon and text
-          Expanded(
-            child: Container(
-              height: 46,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Image.asset(
-                'assets/images/logo/triply-stays-logo.png',
-                fit: BoxFit.contain,
-              ),
+          // Logo - smaller and aligned left
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Image.asset(
+              'assets/images/logo/triply-stays-logo.png',
+              fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(width: 12),
-          // Notification button
-          _GlassIconButton(
-            icon: Icons.notifications_outlined,
-            onTap: () {
-              // TODO: Navigate to notifications
-            },
+          const Spacer(),
+          // Notification button with badge
+          _NotificationButton(
+            unreadCount: unreadCount.valueOrNull ?? 0,
+            onTap: () => context.push('/notifications'),
           ),
           const SizedBox(width: 8),
           // Profile button with photo
@@ -435,6 +494,111 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  Widget _buildViewToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _viewMode = 'grid'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _viewMode == 'grid' ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: _viewMode == 'grid'
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.grid_view_rounded,
+                        size: 18,
+                        color: _viewMode == 'grid'
+                            ? AppColors.primaryOrange
+                            : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Grid View',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: _viewMode == 'grid' ? FontWeight.w600 : FontWeight.w500,
+                          color: _viewMode == 'grid'
+                              ? AppColors.primaryOrange
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _viewMode = 'map'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _viewMode == 'map' ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: _viewMode == 'map'
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.map_outlined,
+                        size: 18,
+                        color: _viewMode == 'map'
+                            ? AppColors.primaryOrange
+                            : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Map View',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: _viewMode == 'map' ? FontWeight.w600 : FontWeight.w500,
+                          color: _viewMode == 'map'
+                              ? AppColors.primaryOrange
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFiltersPanel() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -452,6 +616,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Country and City filters
+          Row(
+            children: [
+              // Country dropdown
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Country',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: _selectedCountry,
+                          hint: const Text('All', style: TextStyle(fontSize: 13)),
+                          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          dropdownColor: Colors.white,
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('All Countries', style: TextStyle(color: AppColors.textPrimary)),
+                            ),
+                            ...countries.map((country) => DropdownMenuItem<String>(
+                              value: country.code,
+                              child: Text('${country.flag} ${country.name}', style: const TextStyle(color: AppColors.textPrimary)),
+                            )),
+                          ],
+                          onChanged: _onCountryChanged,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // City dropdown
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'City',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: _selectedCity,
+                          hint: const Text('All', style: TextStyle(fontSize: 13)),
+                          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          dropdownColor: Colors.white,
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('All Cities', style: TextStyle(color: AppColors.textPrimary)),
+                            ),
+                            ..._availableCities.map((city) => DropdownMenuItem<String>(
+                              value: city,
+                              child: Text(city, style: const TextStyle(color: AppColors.textPrimary)),
+                            )),
+                          ],
+                          onChanged: _onCityChanged,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           // Price range
           const Text(
             'Price Range',
@@ -883,6 +1147,78 @@ class _CategoryChip extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Notification button with unread badge
+class _NotificationButton extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _NotificationButton({
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+              ),
+            ),
+            child: Stack(
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          unreadCount > 9 ? '9+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

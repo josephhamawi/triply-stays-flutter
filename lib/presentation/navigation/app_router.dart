@@ -15,8 +15,10 @@ import '../screens/favorites/favorites_screen.dart';
 import '../screens/messages/messages_screen.dart';
 import '../screens/messages/chat_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
 import '../screens/listing/listing_detail_screen.dart';
 import '../screens/listing/add_listing_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
 import '../screens/main/main_shell.dart';
 
 /// App route paths
@@ -31,10 +33,12 @@ class AppRoutes {
   static const String favorites = '/favorites';
   static const String messages = '/messages';
   static const String profile = '/profile';
+  static const String editProfile = '/edit-profile';
   static const String listing = '/listing/:id';
   static const String addListing = '/add-listing';
   static const String booking = '/booking/:id';
   static const String chat = '/chat/:conversationId';
+  static const String notifications = '/notifications';
 
   // Nested routes
   static const String settings = '/settings';
@@ -42,13 +46,15 @@ class AppRoutes {
 
 /// GoRouter configuration provider
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authNotifierProvider);
-
+  // Use read instead of watch to prevent router recreation on every state change
+  // RouterRefreshStream handles refreshing when auth STATUS changes
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     refreshListenable: RouterRefreshStream(ref),
     redirect: (context, state) {
+      // Read current auth state inside redirect (called when RouterRefreshStream notifies)
+      final authState = ref.read(authNotifierProvider);
       final isLoggedIn = authState.status == AuthStatus.authenticated;
       final needsVerification = authState.status == AuthStatus.emailUnverified;
       final isLoading = authState.status == AuthStatus.initial ||
@@ -173,12 +179,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AddListingScreen(),
       ),
 
+      // Edit profile screen
+      GoRoute(
+        path: AppRoutes.editProfile,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+
       // Chat screen
       GoRoute(
         path: AppRoutes.chat,
         builder: (context, state) => ChatScreen(
           conversationId: state.pathParameters['conversationId']!,
         ),
+      ),
+
+      // Notifications screen
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
       ),
 
       // Booking screen (placeholder)

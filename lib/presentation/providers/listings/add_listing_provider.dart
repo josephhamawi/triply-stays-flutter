@@ -11,7 +11,7 @@ class AddListingFormData {
   final String title;
   final String description;
   final String category;
-  final String view;
+  final List<String> listingViews;  // Multi-select views (sea, mountain, city, etc.)
   final String country;
   final String city;
   final String? location;
@@ -30,7 +30,7 @@ class AddListingFormData {
     this.title = '',
     this.description = '',
     this.category = '',
-    this.view = '',
+    this.listingViews = const [],
     this.country = 'LB',
     this.city = '',
     this.location,
@@ -50,7 +50,7 @@ class AddListingFormData {
     String? title,
     String? description,
     String? category,
-    String? view,
+    List<String>? listingViews,
     String? country,
     String? city,
     String? location,
@@ -69,7 +69,7 @@ class AddListingFormData {
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
-      view: view ?? this.view,
+      listingViews: listingViews ?? this.listingViews,
       country: country ?? this.country,
       city: city ?? this.city,
       location: location ?? this.location,
@@ -90,7 +90,7 @@ class AddListingFormData {
       title.isNotEmpty &&
       description.isNotEmpty &&
       category.isNotEmpty &&
-      view.isNotEmpty;
+      listingViews.isNotEmpty;
 
   bool get isLocationValid => city.isNotEmpty;
 
@@ -244,6 +244,16 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     updateFormData((data) => data.copyWith(amenities: currentAmenities));
   }
 
+  void toggleView(String view) {
+    final currentViews = List<String>.from(state.formData.listingViews);
+    if (currentViews.contains(view)) {
+      currentViews.remove(view);
+    } else {
+      currentViews.add(view);
+    }
+    updateFormData((data) => data.copyWith(listingViews: currentViews));
+  }
+
   Future<bool> submitListing() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -275,7 +285,7 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
         hostPhone: user.phoneNumber,
         hostHasWhatsApp: user.hasWhatsApp,
         category: formData.category,
-        view: formData.view,
+        listingViews: formData.listingViews,
         amenities: formData.amenities,
         rules: formData.rules,
         bedrooms: formData.bedrooms,
