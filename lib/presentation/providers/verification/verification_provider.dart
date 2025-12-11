@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -11,19 +12,27 @@ import '../../../domain/entities/user_verifications.dart';
 class VerificationState {
   final bool isLoading;
   final String? errorMessage;
+  final String? phoneVerificationId;
+  final int? phoneResendToken;
 
   const VerificationState({
     this.isLoading = false,
     this.errorMessage,
+    this.phoneVerificationId,
+    this.phoneResendToken,
   });
 
   VerificationState copyWith({
     bool? isLoading,
     String? errorMessage,
+    String? phoneVerificationId,
+    int? phoneResendToken,
   }) {
     return VerificationState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      phoneVerificationId: phoneVerificationId ?? this.phoneVerificationId,
+      phoneResendToken: phoneResendToken ?? this.phoneResendToken,
     );
   }
 }
@@ -118,37 +127,140 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
     }
   }
 
-  /// Send phone verification code
+  /// Send phone verification code using Firebase Phone Auth
   Future<bool> sendPhoneVerificationCode(String phone) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: 'User not authenticated',
-        );
-        return false;
-      }
-
-      final callable = _functions.httpsCallable('sendPhoneVerification');
-      await callable.call({
-        'phone': phone.trim(),
-        'userId': user.uid,
-      });
-
-      // Also update the user's phone number in Firestore
-      await _firestore.collection('users').doc(user.uid).update({
-        'phone': phone.trim(),
-      });
-
-      state = state.copyWith(isLoading: false);
-      return true;
-    } on FirebaseFunctionsException catch (e) {
+    final user = _auth.currentUser;
+    if (user == null) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.message ?? 'Failed to send verification code',
+        errorMessage: 'User not authenticated',
+      );
+      return false;
+    }
+
+    final completer = Completer<bool>();
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phone.trim(),
+        forceResendingToken: state.phoneResendToken,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification (Android only) - automatically verify
+          try {
+            await _verifyWithCredential(credential, phone);
+            if (!completer.isCompleted) {
+              completer.complete(true);
+            }
+          } catch (e) {
+            if (!completer.isCompleted) {
+              state = state.copyWith(
+                isLoading: false,
+                errorMessage: 'Auto-verification failed: ${e.toString()}',
+              );
+              completer.complete(false);
+            }
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          String errorMessage;
+          switch (e.code) {
+            case 'invalid-phone-number':
+              errorMessage = 'Invalid phone number format. Please check and try again.';
+              break;
+            case 'too-many-requests':
+              errorMessage = 'Too many attempts. Please try again later.';
+              break;
+            case 'quota-exceeded':
+              errorMessage = 'SMS quota exceeded. Please try again later.';
+              break;
+            default:
+              errorMessage = e.message ?? 'Failed to send verification code';
+          }
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: errorMessage,
+          );
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) async {
+          // Code sent successfully - store verification ID for later use
+          state = state.copyWith(
+            isLoading: false,
+            phoneVerificationId: verificationId,
+            phoneResendToken: resendToken,
+          );
+
+          // Update user's phone number in Firestore
+          try {
+            await _firestore.collection('users').doc(user.uid).update({
+              'phone': phone.trim(),
+            });
+          } catch (e) {
+            // Don't fail if Firestore update fails
+          }
+
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Auto-retrieval timeout - user must enter code manually
+          state = state.copyWith(
+            phoneVerificationId: verificationId,
+          );
+        },
+      );
+
+      return await completer.future;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Verify phone code using Firebase Phone Auth
+  Future<bool> verifyPhoneCode(String phone, String code) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final verificationId = state.phoneVerificationId;
+    if (verificationId == null) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Please request a verification code first',
+      );
+      return false;
+    }
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: code.trim(),
+      );
+
+      return await _verifyWithCredential(credential, phone);
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMessage = 'Invalid code. Please check and try again.';
+          break;
+        case 'session-expired':
+          errorMessage = 'Code expired. Please request a new code.';
+          break;
+        default:
+          errorMessage = e.message ?? 'Verification failed';
+      }
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: errorMessage,
       );
       return false;
     } catch (e) {
@@ -160,57 +272,49 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
     }
   }
 
-  /// Verify phone code
-  Future<bool> verifyPhoneCode(String phone, String code) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: 'User not authenticated',
-        );
-        return false;
-      }
-
-      final callable = _functions.httpsCallable('verifyPhoneCode');
-      final result = await callable.call({
-        'phone': phone.trim(),
-        'code': code.trim(),
-        'userId': user.uid,
-      });
-
-      final success = result.data['success'] as bool? ?? false;
-      if (!success) {
-        final message = result.data['message'] as String? ?? 'Verification failed';
-        state = state.copyWith(isLoading: false, errorMessage: message);
-        return false;
-      }
-
-      // Update user's verifications in Firestore
-      await _firestore.collection('users').doc(user.uid).update({
-        'verifications.phone': {
-          'verified': true,
-          'verifiedAt': FieldValue.serverTimestamp(),
-        },
-      });
-
-      state = state.copyWith(isLoading: false);
-      return true;
-    } on FirebaseFunctionsException catch (e) {
+  /// Helper to verify phone credential and update Firestore
+  Future<bool> _verifyWithCredential(PhoneAuthCredential credential, String phone) async {
+    final user = _auth.currentUser;
+    if (user == null) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.message ?? 'Verification failed',
-      );
-      return false;
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: 'User not authenticated',
       );
       return false;
     }
+
+    try {
+      // Link the phone credential to the current user
+      // This verifies the phone number belongs to this user
+      await user.linkWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'credential-already-in-use') {
+        // Phone already linked to another account - but we can still verify it
+        // Just update Firestore without linking
+      } else if (e.code == 'provider-already-linked') {
+        // Phone already linked to this account - that's fine, just verify
+      } else {
+        rethrow;
+      }
+    }
+
+    // Update user's verifications in Firestore
+    await _firestore.collection('users').doc(user.uid).update({
+      'phone': phone.trim(),
+      'verifications.phone': {
+        'verified': true,
+        'verifiedAt': FieldValue.serverTimestamp(),
+      },
+    });
+
+    // Clear the verification state
+    state = state.copyWith(
+      isLoading: false,
+      phoneVerificationId: null,
+      phoneResendToken: null,
+    );
+
+    return true;
   }
 
   /// Submit identity verification

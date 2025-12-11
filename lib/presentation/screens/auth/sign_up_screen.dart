@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/welcome_toast_provider.dart';
 import '../../widgets/auth/auth_text_field.dart';
 
 /// Sign up screen for new user registration
@@ -110,6 +111,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           ),
         );
       } else if (state.user != null) {
+        // Request welcome toast to be shown on home screen
+        await ref.read(welcomeToastProvider.notifier).requestShowWelcome();
         widget.onSuccess?.call();
       }
     }

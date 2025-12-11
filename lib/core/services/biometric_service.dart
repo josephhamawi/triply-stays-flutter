@@ -17,6 +17,7 @@ class BiometricService {
   static const String _emailKey = 'biometric_email';
   static const String _passwordKey = 'biometric_password';
   static const String _biometricEnabledKey = 'biometric_enabled';
+  static const String _justSignedOutKey = 'just_signed_out';
 
   /// Check if device supports biometric authentication
   Future<bool> isBiometricAvailable() async {
@@ -98,5 +99,21 @@ class BiometricService {
   /// Enable biometric login (credentials must already be saved)
   Future<void> enableBiometricLogin() async {
     await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
+  }
+
+  /// Mark that user just signed out (to prevent auto-biometric trigger)
+  Future<void> setJustSignedOut(bool value) async {
+    await _secureStorage.write(key: _justSignedOutKey, value: value ? 'true' : 'false');
+  }
+
+  /// Check if user just signed out
+  Future<bool> didJustSignOut() async {
+    final value = await _secureStorage.read(key: _justSignedOutKey);
+    return value == 'true';
+  }
+
+  /// Clear the just signed out flag
+  Future<void> clearJustSignedOut() async {
+    await _secureStorage.delete(key: _justSignedOutKey);
   }
 }

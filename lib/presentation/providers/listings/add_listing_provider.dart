@@ -16,6 +16,7 @@ class AddListingFormData {
   final String city;
   final String? location;
   final double price;
+  final double? weekendPrice;
   final int bedrooms;
   final int bathrooms;
   final int livingRooms;
@@ -35,6 +36,7 @@ class AddListingFormData {
     this.city = '',
     this.location,
     this.price = 0,
+    this.weekendPrice,
     this.bedrooms = 1,
     this.bathrooms = 1,
     this.livingRooms = 0,
@@ -55,6 +57,7 @@ class AddListingFormData {
     String? city,
     String? location,
     double? price,
+    double? weekendPrice,
     int? bedrooms,
     int? bathrooms,
     int? livingRooms,
@@ -74,6 +77,7 @@ class AddListingFormData {
       city: city ?? this.city,
       location: location ?? this.location,
       price: price ?? this.price,
+      weekendPrice: weekendPrice ?? this.weekendPrice,
       bedrooms: bedrooms ?? this.bedrooms,
       bathrooms: bathrooms ?? this.bathrooms,
       livingRooms: livingRooms ?? this.livingRooms,
@@ -277,6 +281,7 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
         title: formData.title,
         description: formData.description,
         price: formData.price,
+        weekendPrice: formData.weekendPrice,
         city: formData.city,
         country: formData.country,
         images: [],

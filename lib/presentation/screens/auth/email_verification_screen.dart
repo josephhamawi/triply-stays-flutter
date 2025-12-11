@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/welcome_toast_provider.dart';
 import '../../widgets/auth/verification_code_input.dart';
 
 /// Email verification screen with 6-digit code input
@@ -96,6 +97,8 @@ class _EmailVerificationScreenState
 
     if (mounted) {
       if (success) {
+        // Request welcome toast to be shown on home screen (new sign up)
+        await ref.read(welcomeToastProvider.notifier).requestShowWelcome();
         widget.onVerified?.call();
       } else {
         setState(() {

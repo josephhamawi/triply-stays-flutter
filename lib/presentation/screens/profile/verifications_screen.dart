@@ -159,11 +159,12 @@ class _VerificationsScreenState extends ConsumerState<VerificationsScreen> {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _EmailVerificationSheet(email: user?.email ?? ''),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => _EmailVerificationScreen(email: user?.email ?? ''),
+      ),
     );
   }
 
@@ -178,12 +179,13 @@ class _VerificationsScreenState extends ConsumerState<VerificationsScreen> {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _PhoneVerificationSheet(
-        initialPhone: user?.phoneNumber ?? '',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => _PhoneVerificationScreen(
+          initialPhone: user?.phoneNumber ?? '',
+        ),
       ),
     );
   }
@@ -207,11 +209,12 @@ class _VerificationsScreenState extends ConsumerState<VerificationsScreen> {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _IdentityVerificationSheet(),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => const _IdentityVerificationScreen(),
+      ),
     );
   }
 }
@@ -553,17 +556,17 @@ class _VerificationCard extends StatelessWidget {
   }
 }
 
-/// Email verification bottom sheet
-class _EmailVerificationSheet extends ConsumerStatefulWidget {
+/// Email verification full screen
+class _EmailVerificationScreen extends ConsumerStatefulWidget {
   final String email;
 
-  const _EmailVerificationSheet({required this.email});
+  const _EmailVerificationScreen({required this.email});
 
   @override
-  ConsumerState<_EmailVerificationSheet> createState() => _EmailVerificationSheetState();
+  ConsumerState<_EmailVerificationScreen> createState() => _EmailVerificationScreenState();
 }
 
-class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet> {
+class _EmailVerificationScreenState extends ConsumerState<_EmailVerificationScreen> {
   final _codeController = TextEditingController();
   bool _codeSent = false;
   bool _isLoading = false;
@@ -576,89 +579,108 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Verify Email'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon
+              Container(
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.primaryOrange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.email_outlined,
+                  color: AppColors.primaryOrange,
+                  size: 32,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Verify Email',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _codeSent
-                  ? 'Enter the 6-digit code sent to ${widget.email}'
-                  : 'We\'ll send a verification code to ${widget.email}',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (_codeSent) ...[
-              TextField(
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  labelText: 'Verification Code',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  hintText: '000000',
-                  hintStyle: TextStyle(color: AppColors.textLight),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
-                  ),
-                  counterText: '',
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  letterSpacing: 8,
+              const SizedBox(height: 24),
+              const Text(
+                'Verify Email',
+                style: TextStyle(
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Text(
+                _codeSent
+                    ? 'Enter the 6-digit code sent to ${widget.email}'
+                    : 'We\'ll send a verification code to ${widget.email}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              if (_codeSent) ...[
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Verification Code',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    hintText: '000000',
+                    hintStyle: TextStyle(color: AppColors.textLight),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                    ),
+                    counterText: '',
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    letterSpacing: 8,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _sendCode,
+                    child: const Text('Resend Code'),
+                  ),
+                ),
+              ],
+
+              const Spacer(),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _verifyCode,
+                  onPressed: _isLoading ? null : (_codeSent ? _verifyCode : _sendCode),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryOrange,
                     foregroundColor: Colors.white,
@@ -676,47 +698,9 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Verify Code',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: TextButton(
-                  onPressed: _isLoading ? null : _sendCode,
-                  child: const Text('Resend Code'),
-                ),
-              ),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _sendCode,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryOrange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Send Code',
-                          style: TextStyle(
+                      : Text(
+                          _codeSent ? 'Verify Code' : 'Send Code',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -724,8 +708,7 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
     );
@@ -744,7 +727,17 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code sent!')),
+        const SnackBar(
+          content: Text('Verification code sent to your email!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send code. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -765,36 +758,76 @@ class _EmailVerificationSheetState extends ConsumerState<_EmailVerificationSheet
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      // Reload user to get updated verification status
       await ref.read(authNotifierProvider.notifier).reloadUser();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email verified successfully!')),
+        const SnackBar(
+          content: Text('Email verification submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid code. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 }
 
-/// Phone verification bottom sheet
-class _PhoneVerificationSheet extends ConsumerStatefulWidget {
+/// Phone verification full screen with country code
+class _PhoneVerificationScreen extends ConsumerStatefulWidget {
   final String initialPhone;
 
-  const _PhoneVerificationSheet({required this.initialPhone});
+  const _PhoneVerificationScreen({required this.initialPhone});
 
   @override
-  ConsumerState<_PhoneVerificationSheet> createState() => _PhoneVerificationSheetState();
+  ConsumerState<_PhoneVerificationScreen> createState() => _PhoneVerificationScreenState();
 }
 
-class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet> {
+class _PhoneVerificationScreenState extends ConsumerState<_PhoneVerificationScreen> {
   final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
   bool _codeSent = false;
   bool _isLoading = false;
 
+  // Country code selection
+  Map<String, String> _selectedCountry = {
+    'name': 'Lebanon',
+    'code': 'LB',
+    'dialCode': '+961',
+    'flag': '🇱🇧',
+  };
+
+  final List<Map<String, String>> _countries = [
+    {'name': 'Lebanon', 'code': 'LB', 'dialCode': '+961', 'flag': '🇱🇧'},
+    {'name': 'United States', 'code': 'US', 'dialCode': '+1', 'flag': '🇺🇸'},
+    {'name': 'United Kingdom', 'code': 'GB', 'dialCode': '+44', 'flag': '🇬🇧'},
+    {'name': 'United Arab Emirates', 'code': 'AE', 'dialCode': '+971', 'flag': '🇦🇪'},
+    {'name': 'Saudi Arabia', 'code': 'SA', 'dialCode': '+966', 'flag': '🇸🇦'},
+    {'name': 'France', 'code': 'FR', 'dialCode': '+33', 'flag': '🇫🇷'},
+    {'name': 'Germany', 'code': 'DE', 'dialCode': '+49', 'flag': '🇩🇪'},
+    {'name': 'Canada', 'code': 'CA', 'dialCode': '+1', 'flag': '🇨🇦'},
+    {'name': 'Australia', 'code': 'AU', 'dialCode': '+61', 'flag': '🇦🇺'},
+    {'name': 'Egypt', 'code': 'EG', 'dialCode': '+20', 'flag': '🇪🇬'},
+    {'name': 'Jordan', 'code': 'JO', 'dialCode': '+962', 'flag': '🇯🇴'},
+    {'name': 'Syria', 'code': 'SY', 'dialCode': '+963', 'flag': '🇸🇾'},
+    {'name': 'Iraq', 'code': 'IQ', 'dialCode': '+964', 'flag': '🇮🇶'},
+    {'name': 'Kuwait', 'code': 'KW', 'dialCode': '+965', 'flag': '🇰🇼'},
+    {'name': 'Qatar', 'code': 'QA', 'dialCode': '+974', 'flag': '🇶🇦'},
+    {'name': 'Bahrain', 'code': 'BH', 'dialCode': '+973', 'flag': '🇧🇭'},
+    {'name': 'Oman', 'code': 'OM', 'dialCode': '+968', 'flag': '🇴🇲'},
+  ];
+
   @override
   void initState() {
     super.initState();
-    _phoneController.text = widget.initialPhone;
+    // Parse initial phone to extract country code if present
+    if (widget.initialPhone.isNotEmpty) {
+      _phoneController.text = widget.initialPhone.replaceAll(RegExp(r'^\+\d+\s*'), '');
+    }
   }
 
   @override
@@ -804,163 +837,295 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+  void _showCountryPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Country',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Verify Phone',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _codeSent
-                  ? 'Enter the 6-digit code sent to ${_phoneController.text}'
-                  : 'Enter your phone number to receive a verification code',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (!_codeSent) ...[
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Phone Number',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  hintText: '+1234567890',
-                  hintStyle: TextStyle(color: AppColors.textLight),
-                  prefixIcon: Icon(Icons.phone_outlined, color: AppColors.textSecondary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (_codeSent) ...[
-              TextField(
-                controller: _codeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  labelText: 'Verification Code',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  hintText: '000000',
-                  hintStyle: TextStyle(color: AppColors.textLight),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
-                  ),
-                  counterText: '',
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  letterSpacing: 8,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : (_codeSent ? _verifyCode : _sendCode),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+            Expanded(
+              child: ListView.builder(
+                itemCount: _countries.length,
+                itemBuilder: (context, index) {
+                  final country = _countries[index];
+                  final isSelected = country['code'] == _selectedCountry['code'];
+                  return ListTile(
+                    leading: Text(
+                      country['flag']!,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    title: Text(country['name']!),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          country['dialCode']!,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      )
-                    : Text(
-                        _codeSent ? 'Verify Code' : 'Send Code',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.check, color: AppColors.primaryOrange),
+                        ],
+                      ],
+                    ),
+                    onTap: () {
+                      setState(() => _selectedCountry = country);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
               ),
             ),
-            if (_codeSent) ...[
-              const SizedBox(height: 12),
-              Center(
-                child: TextButton(
-                  onPressed: _isLoading ? null : _sendCode,
-                  child: const Text('Resend Code'),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Verify Phone'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOrange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.phone_outlined,
+                  color: AppColors.primaryOrange,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Verify Phone',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _codeSent
+                    ? 'Enter the 6-digit code sent to ${_selectedCountry['dialCode']} ${_phoneController.text}'
+                    : 'Enter your phone number to receive a verification code',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              if (!_codeSent) ...[
+                // Phone input with country code
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Country code picker
+                    GestureDetector(
+                      onTap: _showCountryPicker,
+                      child: Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderLight),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey[50],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedCountry['flag']!,
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _selectedCountry['dialCode']!,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Phone number field
+                    Expanded(
+                      child: TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        autofocus: true,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          labelStyle: TextStyle(color: AppColors.textSecondary),
+                          hintText: '71 123 456',
+                          hintStyle: TextStyle(color: AppColors.textLight),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.borderLight),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (_codeSent) ...[
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Verification Code',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    hintText: '000000',
+                    hintStyle: TextStyle(color: AppColors.textLight),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.primaryOrange, width: 2),
+                    ),
+                    counterText: '',
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    letterSpacing: 8,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _sendCode,
+                    child: const Text('Resend Code'),
+                  ),
+                ),
+              ],
+
+              const Spacer(),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : (_codeSent ? _verifyCode : _sendCode),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _codeSent ? 'Verify Code' : 'Send Code',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _fullPhoneNumber {
+    return '${_selectedCountry['dialCode']}${_phoneController.text.trim()}'.replaceAll(' ', '');
   }
 
   Future<void> _sendCode() async {
@@ -974,8 +1139,8 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
 
     setState(() => _isLoading = true);
 
-    final success = await ref.read(verificationNotifierProvider.notifier)
-        .sendPhoneVerificationCode(phone);
+    final notifier = ref.read(verificationNotifierProvider.notifier);
+    final success = await notifier.sendPhoneVerificationCode(_fullPhoneNumber);
 
     setState(() {
       _isLoading = false;
@@ -984,7 +1149,20 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code sent!')),
+        const SnackBar(
+          content: Text('Verification code sent to your phone!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      final state = ref.read(verificationNotifierProvider);
+      final errorMessage = state.errorMessage ?? 'Failed to send code. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
@@ -999,8 +1177,8 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
 
     setState(() => _isLoading = true);
 
-    final success = await ref.read(verificationNotifierProvider.notifier)
-        .verifyPhoneCode(_phoneController.text.trim(), _codeController.text);
+    final notifier = ref.read(verificationNotifierProvider.notifier);
+    final success = await notifier.verifyPhoneCode(_fullPhoneNumber, _codeController.text);
 
     setState(() => _isLoading = false);
 
@@ -1008,22 +1186,35 @@ class _PhoneVerificationSheetState extends ConsumerState<_PhoneVerificationSheet
       await ref.read(authNotifierProvider.notifier).reloadUser();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone verified successfully!')),
+        const SnackBar(
+          content: Text('Phone verified successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      final state = ref.read(verificationNotifierProvider);
+      final errorMessage = state.errorMessage ?? 'Invalid code. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
 }
 
-/// Identity verification bottom sheet
-class _IdentityVerificationSheet extends ConsumerStatefulWidget {
-  const _IdentityVerificationSheet();
+/// Identity verification full screen
+class _IdentityVerificationScreen extends ConsumerStatefulWidget {
+  const _IdentityVerificationScreen();
 
   @override
-  ConsumerState<_IdentityVerificationSheet> createState() => _IdentityVerificationSheetState();
+  ConsumerState<_IdentityVerificationScreen> createState() => _IdentityVerificationScreenState();
 }
 
-class _IdentityVerificationSheetState extends ConsumerState<_IdentityVerificationSheet> {
-  String _selectedDocType = 'passport';
+class _IdentityVerificationScreenState extends ConsumerState<_IdentityVerificationScreen> {
+  String? _selectedDocType;
   File? _documentFile;
   bool _isLoading = false;
 
@@ -1033,184 +1224,334 @@ class _IdentityVerificationSheetState extends ConsumerState<_IdentityVerificatio
     {'value': 'national_id', 'label': 'National ID'},
   ];
 
+  String? get _selectedDocTypeLabel {
+    if (_selectedDocType == null) return null;
+    final type = _documentTypes.firstWhere(
+      (t) => t['value'] == _selectedDocType,
+      orElse: () => {'label': ''},
+    );
+    return type['label'];
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Verify Identity'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon
+              Container(
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.primaryOrange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.badge_outlined,
+                  color: AppColors.primaryOrange,
+                  size: 32,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Verify Identity',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Upload a clear photo of your government-issued ID',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Document type selector
-            const Text(
-              'Document Type',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedDocType,
-                  isExpanded: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  borderRadius: BorderRadius.circular(12),
-                  items: _documentTypes.map((type) {
-                    return DropdownMenuItem<String>(
-                      value: type['value'],
-                      child: Text(type['label']!),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedDocType = value);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Document upload
-            const Text(
-              'Document Photo',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: double.infinity,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey[300]!,
-                    style: BorderStyle.solid,
-                  ),
-                ),
-                child: _documentFile != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _documentFile!,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.cloud_upload_outlined,
-                            size: 48,
-                            color: AppColors.textLight,
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Tap to upload photo',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading || _documentFile == null ? null : _submitVerification,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryOrange,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey[300],
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Submit for Review',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(
-                'Your ID will be reviewed within 24-48 hours',
+              const SizedBox(height: 24),
+              const Text(
+                'Verify Identity',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Upload a clear photo of your government-issued ID',
+                style: TextStyle(
+                  fontSize: 16,
                   color: AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(height: 32),
+
+              // Document type selector
+              const Text(
+                'Document Type',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _showDocumentTypePicker,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.borderLight),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.grey[50],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedDocTypeLabel ?? 'Select document type',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _selectedDocType != null
+                              ? AppColors.textPrimary
+                              : AppColors.textLight,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Document upload
+              const Text(
+                'Document Photo',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: _documentFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                _documentFile!,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _documentFile = null),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.cloud_upload_outlined,
+                              size: 48,
+                              color: AppColors.textLight,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Tap to upload photo',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Take a photo or choose from gallery',
+                              style: TextStyle(
+                                color: AppColors.textLight,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading || _documentFile == null || _selectedDocType == null
+                      ? null
+                      : _submitVerification,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[300],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Submit for Review',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  'Your ID will be reviewed within 24-48 hours',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDocumentTypePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Select Document Type',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ..._documentTypes.map((type) {
+                  final isSelected = type['value'] == _selectedDocType;
+                  final IconData iconData = type['value'] == 'passport'
+                      ? Icons.menu_book
+                      : type['value'] == 'drivers_license'
+                          ? Icons.directions_car
+                          : Icons.badge;
+                  return InkWell(
+                    onTap: () {
+                      setState(() => _selectedDocType = type['value']);
+                      Navigator.pop(context);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primaryOrange.withValues(alpha: 0.1)
+                                  : AppColors.backgroundLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              iconData,
+                              color: isSelected ? AppColors.primaryOrange : AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              type['label']!,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected ? AppColors.primaryOrange : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check, color: AppColors.primaryOrange),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
     );
@@ -1221,50 +1562,128 @@ class _IdentityVerificationSheetState extends ConsumerState<_IdentityVerificatio
 
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await picker.pickImage(
-                  source: ImageSource.camera,
-                  imageQuality: 80,
-                );
-                if (image != null) {
-                  setState(() => _documentFile = File(image.path));
-                }
-              },
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                // Camera option
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await picker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() => _documentFile = File(image.path));
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: AppColors.primaryOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Text(
+                          'Take Photo',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Gallery option
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setState(() => _documentFile = File(image.path));
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.photo_library,
+                            color: AppColors.primaryOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Text(
+                          'Choose from Gallery',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await picker.pickImage(
-                  source: ImageSource.gallery,
-                  imageQuality: 80,
-                );
-                if (image != null) {
-                  setState(() => _documentFile = File(image.path));
-                }
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _submitVerification() async {
-    if (_documentFile == null) return;
+    if (_documentFile == null || _selectedDocType == null) return;
 
     setState(() => _isLoading = true);
 
     final success = await ref.read(verificationNotifierProvider.notifier)
-        .submitIdentityVerification(_selectedDocType, _documentFile!);
+        .submitIdentityVerification(_selectedDocType!, _documentFile!);
 
     setState(() => _isLoading = false);
 
@@ -1272,7 +1691,17 @@ class _IdentityVerificationSheetState extends ConsumerState<_IdentityVerificatio
       await ref.read(authNotifierProvider.notifier).reloadUser();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Identity verification submitted for review!')),
+        SnackBar(
+          content: Text('Identity verification ($_selectedDocTypeLabel) submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to submit. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

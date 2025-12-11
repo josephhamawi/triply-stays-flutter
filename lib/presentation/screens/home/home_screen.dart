@@ -10,9 +10,11 @@ import '../../../domain/repositories/listing_repository.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/listings_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
+import '../../providers/welcome_toast_provider.dart';
 import '../../widgets/common/liquid_orb.dart';
 import '../../widgets/listing/listing_card.dart';
 import '../../widgets/map/listings_map_view.dart';
+import '../../widgets/welcome_toast.dart';
 
 /// Home screen with listings grid and search
 class HomeScreen extends ConsumerStatefulWidget {
@@ -51,6 +53,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     super.initState();
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() => setState(() {}));
+
+    // Show welcome toast if requested (after sign-in/sign-up)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWelcomeToastIfNeeded();
+    });
+  }
+
+  void _showWelcomeToastIfNeeded() {
+    final shouldShow = ref.read(welcomeToastProvider);
+    if (shouldShow) {
+      final user = ref.read(authNotifierProvider).user;
+      final firstName = user?.firstName ?? user?.displayName?.split(' ').first ?? '';
+
+      // Show the welcome toast
+      WelcomeToastService.showWelcome(context, firstName, user?.id);
+
+      // Mark as shown
+      ref.read(welcomeToastProvider.notifier).markShown();
+    }
   }
 
   @override

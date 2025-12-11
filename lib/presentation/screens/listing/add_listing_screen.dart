@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../navigation/app_router.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/add_listing_provider.dart';
 import '../../providers/listings/listings_provider.dart';
 
@@ -33,8 +36,107 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
     super.dispose();
   }
 
+  Widget _buildEmailVerificationRequired(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Become a Host'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOrange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.email_outlined,
+                  size: 50,
+                  color: AppColors.primaryOrange,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Email Verification Required',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'To become a host and list your property, you need to verify your email address first.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/profile');
+                    // Navigate to Login & Security from profile
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Go to Profile Settings',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Maybe Later',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+
+    // Check if email is verified - required to host
+    if (user == null || !user.emailVerified) {
+      return _buildEmailVerificationRequired(context);
+    }
+
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
 
@@ -63,6 +165,7 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           title: Text(_stepTitles[state.currentStep]),
           backgroundColor: Colors.white,
@@ -385,7 +488,7 @@ class _BasicInfoStepState extends ConsumerState<_BasicInfoStep> {
             loading: () => const CircularProgressIndicator(),
             error: (_, __) => const Text('Failed to load views'),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -483,7 +586,7 @@ class _LocationStepState extends ConsumerState<_LocationStep> {
               (data) => data.copyWith(location: value.isEmpty ? null : value),
             ),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -500,17 +603,20 @@ class _DetailsStep extends ConsumerStatefulWidget {
 
 class _DetailsStepState extends ConsumerState<_DetailsStep> {
   late final TextEditingController _priceController;
+  late final TextEditingController _weekendPriceController;
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
     _priceController = TextEditingController();
+    _weekendPriceController = TextEditingController();
   }
 
   @override
   void dispose() {
     _priceController.dispose();
+    _weekendPriceController.dispose();
     super.dispose();
   }
 
@@ -519,10 +625,13 @@ class _DetailsStepState extends ConsumerState<_DetailsStep> {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
 
-    // Initialize controller only once with existing data
+    // Initialize controllers only once with existing data
     if (!_initialized) {
       if (state.formData.price > 0) {
         _priceController.text = state.formData.price.toStringAsFixed(0);
+      }
+      if (state.formData.weekendPrice != null && state.formData.weekendPrice! > 0) {
+        _weekendPriceController.text = state.formData.weekendPrice!.toStringAsFixed(0);
       }
       _initialized = true;
     }
@@ -541,6 +650,25 @@ class _DetailsStepState extends ConsumerState<_DetailsStep> {
             keyboardType: TextInputType.number,
             onChanged: (value) => notifier.updateFormData(
               (data) => data.copyWith(price: double.tryParse(value) ?? 0),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSectionTitle('Weekend Price per Night (USD)'),
+          const SizedBox(height: 4),
+          Text(
+            'Optional - Set a different price for Friday & Saturday nights',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _weekendPriceController,
+            decoration: _inputDecoration('\$0 (Optional)'),
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            keyboardType: TextInputType.number,
+            onChanged: (value) => notifier.updateFormData(
+              (data) => data.copyWith(
+                weekendPrice: value.isEmpty ? null : double.tryParse(value),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -580,7 +708,7 @@ class _DetailsStepState extends ConsumerState<_DetailsStep> {
               (data) => data.copyWith(maxGuests: value),
             ),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -640,7 +768,7 @@ class _AmenitiesStep extends ConsumerWidget {
             loading: () => const CircularProgressIndicator(),
             error: (_, __) => const Text('Failed to load amenities'),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -772,7 +900,7 @@ class _PhotosStep extends ConsumerWidget {
                 );
               },
             ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -838,7 +966,7 @@ class _RulesStepState extends ConsumerState<_RulesStep> {
               (data) => data.copyWith(rules: value.isEmpty ? null : value),
             ),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -886,6 +1014,8 @@ class _ReviewStep extends ConsumerWidget {
           const SizedBox(height: 16),
           _buildReviewCard([
             _buildReviewRow('Price', '\$${formData.price.toStringAsFixed(0)}/night'),
+            if (formData.weekendPrice != null)
+              _buildReviewRow('Weekend Price', '\$${formData.weekendPrice!.toStringAsFixed(0)}/night'),
             _buildReviewRow('Bedrooms', formData.bedrooms.toString()),
             _buildReviewRow('Bathrooms', formData.bathrooms.toString()),
             _buildReviewRow('Living Rooms', formData.livingRooms.toString()),
@@ -933,7 +1063,7 @@ class _ReviewStep extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1107,6 +1237,7 @@ Widget _buildCounterRow(
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),

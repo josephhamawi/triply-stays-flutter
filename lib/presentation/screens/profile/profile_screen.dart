@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/biometric_service.dart';
 import '../../../domain/entities/user_verifications.dart';
 import '../../../data/services/image_upload_service.dart';
 import '../../providers/auth/auth_provider.dart';
@@ -937,6 +938,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           );
 
           if (confirmed == true) {
+            // Set flag to prevent auto-biometric trigger on sign-in screen
+            await BiometricService().setJustSignedOut(true);
             await ref.read(authNotifierProvider.notifier).signOut();
           }
         },

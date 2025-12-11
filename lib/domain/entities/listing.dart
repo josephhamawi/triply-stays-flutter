@@ -4,6 +4,7 @@ class Listing {
   final String title;
   final String description;
   final double price;
+  final double? weekendPrice;
   final String city;
   final String country;
   final String? address;
@@ -37,6 +38,7 @@ class Listing {
     required this.title,
     required this.description,
     required this.price,
+    this.weekendPrice,
     required this.city,
     this.country = 'LB',
     this.address,
@@ -82,6 +84,7 @@ class Listing {
     String? title,
     String? description,
     double? price,
+    double? weekendPrice,
     String? city,
     String? country,
     String? address,
@@ -115,6 +118,7 @@ class Listing {
       title: title ?? this.title,
       description: description ?? this.description,
       price: price ?? this.price,
+      weekendPrice: weekendPrice ?? this.weekendPrice,
       city: city ?? this.city,
       country: country ?? this.country,
       address: address ?? this.address,

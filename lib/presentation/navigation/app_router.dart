@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/biometric_service.dart';
 import '../providers/auth/auth_provider.dart';
 import '../providers/auth/auth_state.dart';
 import '../screens/auth/email_verification_screen.dart';
@@ -9,6 +10,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/sign_in_screen.dart';
 import '../screens/auth/sign_up_screen.dart';
 import '../screens/splash/splash_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/favorites/favorites_screen.dart';
@@ -24,6 +26,7 @@ import '../screens/main/main_shell.dart';
 /// App route paths
 class AppRoutes {
   static const String splash = '/';
+  static const String onboarding = '/onboarding';
   static const String signIn = '/sign-in';
   static const String signUp = '/sign-up';
   static const String forgotPassword = '/forgot-password';
@@ -55,8 +58,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       // Read current auth state inside redirect (called when RouterRefreshStream notifies)
       final authState = ref.read(authNotifierProvider);
-      final isLoggedIn = authState.status == AuthStatus.authenticated;
-      final needsVerification = authState.status == AuthStatus.emailUnverified;
+      // Treat both authenticated and emailUnverified as "logged in"
+      // Email verification is optional and only done via settings
+      final isLoggedIn = authState.status == AuthStatus.authenticated ||
+                         authState.status == AuthStatus.emailUnverified;
       final isLoading = authState.status == AuthStatus.initial ||
                         authState.status == AuthStatus.loading;
 
@@ -67,10 +72,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         AppRoutes.signIn,
         AppRoutes.signUp,
         AppRoutes.forgotPassword,
+        AppRoutes.onboarding,
       ];
 
       final isAuthRoute = authRoutes.contains(currentPath);
-      final isVerificationRoute = currentPath == AppRoutes.emailVerification;
       final isSplashRoute = currentPath == AppRoutes.splash;
 
       // If still loading, stay on splash
@@ -79,17 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If not logged in and trying to access protected route (including splash after loading)
-      if (!isLoading && !isLoggedIn && !needsVerification && !isAuthRoute) {
+      if (!isLoading && !isLoggedIn && !isAuthRoute) {
         return AppRoutes.signIn;
       }
 
-      // If logged in but needs verification
-      if (needsVerification && !isVerificationRoute) {
-        return AppRoutes.emailVerification;
-      }
-
-      // If logged in and verified, redirect away from auth routes
-      if (isLoggedIn && (isAuthRoute || isVerificationRoute || isSplashRoute)) {
+      // If logged in, redirect away from auth routes to home
+      if (isLoggedIn && (isAuthRoute || isSplashRoute)) {
         return AppRoutes.home;
       }
 
@@ -101,6 +101,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
+      ),
+
+      // Onboarding (shown to first-time users)
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => OnboardingScreen(
+          onComplete: () => context.go(AppRoutes.signIn),
+        ),
       ),
 
       // Auth routes
@@ -116,7 +124,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.signUp,
         builder: (context, state) => SignUpScreen(
           onSignInTap: () => context.go(AppRoutes.signIn),
-          onSuccess: () => context.go(AppRoutes.emailVerification),
+          onSuccess: () => context.go(AppRoutes.home),
         ),
       ),
       GoRoute(
@@ -129,7 +137,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.emailVerification,
         builder: (context, state) => EmailVerificationScreen(
           onVerified: () => context.go(AppRoutes.home),
-          onBack: () {
+          onBack: () async {
+            // Set flag to prevent auto-biometric trigger on sign-in screen
+            await BiometricService().setJustSignedOut(true);
             // Sign out and go back to sign in
             final container = ProviderScope.containerOf(context);
             container.read(authNotifierProvider.notifier).signOut();

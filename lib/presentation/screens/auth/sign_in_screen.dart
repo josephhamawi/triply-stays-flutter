@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/welcome_toast_provider.dart';
 import '../../widgets/auth/auth_text_field.dart';
 
 /// Sign in screen for user authentication
@@ -43,6 +44,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final isAvailable = await _biometricService.isBiometricAvailable();
     final hasCredentials = await _biometricService.hasStoredCredentials();
     final isEnabled = await _biometricService.isBiometricLoginEnabled();
+    final justSignedOut = await _biometricService.didJustSignOut();
 
     if (mounted) {
       setState(() {
@@ -50,9 +52,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         _hasSavedCredentials = hasCredentials;
       });
 
-      // Auto-trigger biometric login if available
-      if (_canUseBiometric) {
+      // Auto-trigger biometric login only if user didn't just sign out
+      // User can still manually tap the biometric button to sign in
+      if (_canUseBiometric && !justSignedOut) {
         _handleBiometricSignIn();
+      }
+
+      // Clear the just signed out flag after checking
+      if (justSignedOut) {
+        await _biometricService.clearJustSignedOut();
       }
     }
   }
@@ -108,6 +116,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           email: email,
           password: password,
         );
+        // Request welcome toast to be shown on home screen
+        await ref.read(welcomeToastProvider.notifier).requestShowWelcome();
         widget.onSuccess?.call();
       }
     }
@@ -159,6 +169,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
           );
         } else if (state.user != null) {
+          // Request welcome toast to be shown on home screen
+          await ref.read(welcomeToastProvider.notifier).requestShowWelcome();
           widget.onSuccess?.call();
         }
       }

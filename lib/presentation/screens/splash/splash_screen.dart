@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../navigation/app_router.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../../providers/auth/auth_state.dart';
+import '../onboarding/onboarding_screen.dart';
 
 /// Splash screen shown on app launch
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  bool _navigationHandled = false;
 
   @override
   void initState() {
@@ -40,10 +47,40 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // TODO: Navigate to appropriate screen after checking auth state
-    // Future.delayed(const Duration(seconds: 2), () {
-    //   Navigator.of(context).pushReplacement(...);
-    // });
+    // Check onboarding and auth after animation
+    Future.delayed(const Duration(milliseconds: 1500), _checkNavigationTarget);
+  }
+
+  Future<void> _checkNavigationTarget() async {
+    if (!mounted || _navigationHandled) return;
+
+    final authState = ref.read(authNotifierProvider);
+    // Treat both authenticated and emailUnverified as logged in
+    // Email verification is optional and only done via settings
+    final isLoggedIn = authState.status == AuthStatus.authenticated ||
+                       authState.status == AuthStatus.emailUnverified;
+
+    // If user is logged in, go to home
+    if (isLoggedIn) {
+      _navigationHandled = true;
+      context.go(AppRoutes.home);
+      return;
+    }
+
+    // Check if onboarding is complete
+    final hasCompletedOnboarding = await OnboardingScreen.hasCompletedOnboarding();
+
+    if (!mounted) return;
+
+    _navigationHandled = true;
+
+    if (!hasCompletedOnboarding) {
+      // First time user - show onboarding
+      context.go(AppRoutes.onboarding);
+    } else {
+      // Returning user - go to sign in
+      context.go(AppRoutes.signIn);
+    }
   }
 
   @override
