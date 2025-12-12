@@ -332,9 +332,10 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
       }
 
       // Upload document to Firebase Storage
+      // Path matches web app storage rules: identity-verifications/{userId}/{fileName}
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = documentFile.path.split('.').last;
-      final storagePath = 'identity_documents/${user.uid}/$timestamp.$extension';
+      final storagePath = 'identity-verifications/${user.uid}/$timestamp.$extension';
 
       final ref = _storage.ref().child(storagePath);
       await ref.putFile(documentFile);

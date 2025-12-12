@@ -311,7 +311,7 @@ class MyListingsScreen extends ConsumerWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          '${listing.city}${listing.country != null ? ', ${listing.country}' : ''}',
+                          '${listing.city}${listing.country.isNotEmpty ? ', ${listing.country}' : ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

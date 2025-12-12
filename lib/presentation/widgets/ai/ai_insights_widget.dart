@@ -53,7 +53,6 @@ class _AIInsightsWidgetState extends State<AIInsightsWidget> {
 
   ConversationAnalytics? _analytics;
   double _bookingProbability = 0;
-  bool _loading = true;
   bool _expanded = false;
 
   @override
@@ -72,8 +71,6 @@ class _AIInsightsWidgetState extends State<AIInsightsWidget> {
 
   Future<void> _loadAnalytics() async {
     try {
-      setState(() => _loading = true);
-
       final data = await _analyticsService.getConversationAnalytics(widget.chatId);
       if (data != null) {
         final probability = await _analyticsService.getBookingProbability(widget.chatId);
@@ -82,11 +79,8 @@ class _AIInsightsWidgetState extends State<AIInsightsWidget> {
           _bookingProbability = probability;
         });
       }
-
-      setState(() => _loading = false);
     } catch (error) {
-      print('Error loading AI insights: $error');
-      setState(() => _loading = false);
+      debugPrint('Error loading AI insights: $error');
     }
   }
 

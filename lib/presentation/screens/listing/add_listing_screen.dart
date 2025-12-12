@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../navigation/app_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/add_listing_provider.dart';
 import '../../providers/listings/listings_provider.dart';
@@ -239,8 +238,8 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
+        top: 8,
+        bottom: MediaQuery.of(context).padding.bottom + 8,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -504,7 +503,6 @@ class _LocationStep extends ConsumerStatefulWidget {
 }
 
 class _LocationStepState extends ConsumerState<_LocationStep> {
-  late final TextEditingController _cityController;
   late final TextEditingController _locationController;
   bool _initialized = false;
 
@@ -522,13 +520,11 @@ class _LocationStepState extends ConsumerState<_LocationStep> {
   @override
   void initState() {
     super.initState();
-    _cityController = TextEditingController();
     _locationController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _cityController.dispose();
     _locationController.dispose();
     super.dispose();
   }
@@ -537,10 +533,10 @@ class _LocationStepState extends ConsumerState<_LocationStep> {
   Widget build(BuildContext context) {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
+    final citiesAsync = ref.watch(citiesProvider(state.formData.country));
 
-    // Initialize controllers only once with existing data
+    // Initialize controller only once with existing data
     if (!_initialized) {
-      _cityController.text = state.formData.city;
       _locationController.text = state.formData.location ?? '';
       _initialized = true;
     }
@@ -561,26 +557,69 @@ class _LocationStepState extends ConsumerState<_LocationStep> {
               notifier.updateFormData(
                 (data) => data.copyWith(country: value ?? 'LB', city: ''),
               );
-              _cityController.clear();
             },
           ),
           const SizedBox(height: 16),
           _buildSectionTitle('City'),
           const SizedBox(height: 8),
-          TextField(
-            controller: _cityController,
-            decoration: _inputDecoration('Enter city name'),
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
-            onChanged: (value) => notifier.updateFormData(
-              (data) => data.copyWith(city: value),
+          citiesAsync.when(
+            data: (cities) => cities.isNotEmpty
+                ? _buildDropdown(
+                    value: state.formData.city.isEmpty ? null : state.formData.city,
+                    hint: 'Select city',
+                    items: cities,
+                    onChanged: (value) => notifier.updateFormData(
+                      (data) => data.copyWith(city: value ?? ''),
+                    ),
+                  )
+                : TextField(
+                    decoration: _inputDecoration('Enter city name'),
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                    onChanged: (value) => notifier.updateFormData(
+                      (data) => data.copyWith(city: value),
+                    ),
+                  ),
+            loading: () => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Loading cities...',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            error: (_, __) => TextField(
+              decoration: _inputDecoration('Enter city name'),
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+              onChanged: (value) => notifier.updateFormData(
+                (data) => data.copyWith(city: value),
+              ),
             ),
           ),
           const SizedBox(height: 16),
           _buildSectionTitle('Google Maps Link (Optional)'),
+          const SizedBox(height: 4),
+          Text(
+            'Copy your listing location link from Google Maps. Find your location, click "Share", and paste the link here.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _locationController,
-            decoration: _inputDecoration('Paste Google Maps URL'),
+            decoration: _inputDecoration('https://maps.app.goo.gl/... or https://www.google.com/maps?q=...'),
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
             onChanged: (value) => notifier.updateFormData(
               (data) => data.copyWith(location: value.isEmpty ? null : value),
@@ -830,73 +869,135 @@ class _PhotosStep extends ConsumerWidget {
             '${state.formData.selectedImages.length}/10 photos selected',
             style: TextStyle(color: AppColors.textSecondary),
           ),
+          if (state.formData.selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Long press and drag to reorder. First photo is the cover.',
+              style: TextStyle(color: AppColors.primaryOrange, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 16),
           if (state.formData.selectedImages.isNotEmpty)
-            GridView.builder(
+            ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
+              buildDefaultDragHandles: false,
+              onReorder: notifier.reorderImages,
               itemCount: state.formData.selectedImages.length,
+              proxyDecorator: (child, index, animation) {
+                return Material(
+                  elevation: 4,
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  child: child,
+                );
+              },
               itemBuilder: (context, index) {
                 final image = state.formData.selectedImages[index];
-                return Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(image.path),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
-                    if (index == 0)
-                      Positioned(
-                        top: 4,
-                        left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                return ReorderableDragStartListener(
+                  key: ValueKey(image.path),
+                  index: index,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    height: 200,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(image.path),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
                           ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryOrange,
-                            borderRadius: BorderRadius.circular(4),
+                        ),
+                        // Cover badge
+                        if (index == 0)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryOrange,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Cover Photo',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
-                          child: const Text(
-                            'Cover',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        // Photo number badge
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: () => notifier.removeImage(index),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 16,
+                        // Drag handle
+                        Positioned(
+                          bottom: 8,
+                          right: 48,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.drag_handle,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
-                      ),
+                        // Delete button
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () => notifier.removeImage(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 );
               },
             ),

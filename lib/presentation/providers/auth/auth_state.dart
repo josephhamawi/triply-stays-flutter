@@ -9,6 +9,7 @@ enum AuthStatus {
   authenticated,
   unauthenticated,
   emailUnverified,
+  guest,
   error,
 }
 
@@ -54,6 +55,13 @@ class AuthState {
         errorMessage = null,
         isLoading = false;
 
+  /// Guest browsing state
+  const AuthState.guest()
+      : status = AuthStatus.guest,
+        user = null,
+        errorMessage = null,
+        isLoading = false;
+
   /// Email unverified state
   AuthState.emailUnverified(User this.user)
       : status = AuthStatus.emailUnverified,
@@ -67,6 +75,9 @@ class AuthState {
 
   /// Check if user is authenticated
   bool get isAuthenticated => status == AuthStatus.authenticated;
+
+  /// Check if user is browsing as guest
+  bool get isGuest => status == AuthStatus.guest;
 
   /// Check if user needs email verification
   bool get needsEmailVerification => status == AuthStatus.emailUnverified;

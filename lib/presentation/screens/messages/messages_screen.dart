@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/conversation.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/messaging/messaging_provider.dart';
+import '../../widgets/guest_prompt_dialog.dart';
 
 /// Messages/Chat list screen
 class MessagesScreen extends ConsumerStatefulWidget {
@@ -21,10 +22,101 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   bool _showArchived = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Show guest prompt if user is a guest
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final isGuest = ref.read(isGuestProvider);
+      if (isGuest) {
+        GuestPromptDialog.show(
+          context,
+          message: 'Sign up to message property owners and manage your conversations.',
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isGuest = ref.watch(isGuestProvider);
     final conversationsAsync = ref.watch(conversationsProvider);
     final authState = ref.watch(authNotifierProvider);
     final currentUserId = authState.user?.id;
+
+    // Show guest-specific empty state
+    if (isGuest) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Messages',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: 80,
+                        color: AppColors.textLight.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Sign up to message hosts',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Create an account to chat with\nproperty owners',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => GuestPromptDialog.show(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryOrange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,

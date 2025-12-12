@@ -27,10 +27,10 @@ class _MainShellState extends ConsumerState<MainShell> {
       path: '/home',
     ),
     _NavItem(
-      icon: Icons.favorite_outline,
-      activeIcon: Icons.favorite,
-      label: 'Saved',
-      path: '/favorites',
+      icon: Icons.auto_awesome_outlined,
+      activeIcon: Icons.auto_awesome,
+      label: 'AI',
+      path: '/ai',
     ),
     // Placeholder for center FAB
     _NavItem(

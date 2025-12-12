@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../domain/entities/user_verifications.dart';
 import '../../../data/services/image_upload_service.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../widgets/guest_prompt_dialog.dart';
 import 'host_pro_screen.dart';
 import 'login_security_screen.dart';
 import 'my_listings_screen.dart';
@@ -319,8 +322,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isGuest = ref.watch(isGuestProvider);
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
+
+    // Show guest profile screen
+    if (isGuest) {
+      return _buildGuestProfileScreen(context);
+    }
 
     _initializeControllers();
 
@@ -614,6 +623,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 delegate: SliverChildListDelegate([
                   _buildSection('Account', [
                     _MenuItem(
+                      icon: Icons.favorite_outline,
+                      title: 'Saved Listings',
+                      onTap: () => context.push('/favorites'),
+                    ),
+                    _MenuItem(
                       icon: Icons.verified_user_outlined,
                       title: 'Verifications',
                       onTap: () {
@@ -723,35 +737,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  void _showAboutDialog(BuildContext context) {
+  void _showAboutDialog(BuildContext context) async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primaryOrange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/images/logo/logo.png',
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
               ),
-              child: const Icon(Icons.home_work, color: AppColors.primaryOrange),
             ),
             const SizedBox(width: 12),
             const Text('Triply Stays'),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'A FREE vacation rental marketplace connecting hosts and travelers directly.',
               style: TextStyle(fontSize: 14, height: 1.5),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'No booking fees. No commissions. Just direct connections.',
               style: TextStyle(
                 fontSize: 14,
@@ -759,10 +776,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: AppColors.primaryOrange,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              'Version 1.0.0',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              'Version ${packageInfo.version} (${packageInfo.buildNumber})',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -943,6 +960,199 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             await ref.read(authNotifierProvider.notifier).signOut();
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildGuestProfileScreen(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      body: CustomScrollView(
+        slivers: [
+          // Guest profile header
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primaryOrange,
+                    AppColors.primaryOrange.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      // Guest avatar
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person_outline,
+                          size: 50,
+                          color: AppColors.primaryOrange,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Guest User',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Browsing as guest',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Sign up button
+                      ElevatedButton(
+                        onPressed: () => GuestPromptDialog.show(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primaryOrange,
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign Up to Unlock All Features',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Benefits of signing up
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Create an account to:',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildBenefitItem(Icons.visibility, 'View listing details'),
+                    _buildBenefitItem(Icons.favorite_outline, 'Save favorite properties'),
+                    _buildBenefitItem(Icons.chat_bubble_outline, 'Message property owners'),
+                    _buildBenefitItem(Icons.home_work_outlined, 'List your own property'),
+                    _buildBenefitItem(Icons.verified_user_outlined, 'Get verified status'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Support section (accessible to guests)
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildSection('Support', [
+                  _MenuItem(
+                    icon: Icons.help_outline,
+                    title: 'Help Center',
+                    onTap: () => _openUrl('https://triplystays.com/#/help'),
+                  ),
+                  _MenuItem(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    onTap: () => _openUrl('https://triplystays.com/#/privacy'),
+                  ),
+                  _MenuItem(
+                    icon: Icons.description_outlined,
+                    title: 'Terms & Conditions',
+                    onTap: () => _openUrl('https://triplystays.com/#/terms'),
+                  ),
+                  _MenuItem(
+                    icon: Icons.info_outline,
+                    title: 'About Triply Stays',
+                    onTap: () => _showAboutDialog(context),
+                  ),
+                ]),
+                const SizedBox(height: 120),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBenefitItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.primaryOrange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppColors.primaryOrange, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

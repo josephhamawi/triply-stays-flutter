@@ -12,6 +12,7 @@ import '../../providers/listings/listings_provider.dart';
 import '../../providers/notifications/notification_provider.dart';
 import '../../providers/welcome_toast_provider.dart';
 import '../../widgets/common/liquid_orb.dart';
+import '../../widgets/guest_prompt_dialog.dart';
 import '../../widgets/listing/listing_card.dart';
 import '../../widgets/map/listings_map_view.dart';
 import '../../widgets/welcome_toast.dart';
@@ -260,7 +261,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           return ListingCard(
                             listing: listing,
                             onTap: () {
-                              context.push('/listing/${listing.id}');
+                              final isGuest = ref.read(isGuestProvider);
+                              if (isGuest) {
+                                GuestPromptDialog.show(
+                                  context,
+                                  message: 'Sign up to view listing details and connect with property owners.',
+                                );
+                              } else {
+                                context.push('/listing/${listing.id}');
+                              }
                             },
                           );
                         },
@@ -1042,46 +1051,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Glass icon button for app bar
-class _GlassIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _GlassIconButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -4,16 +4,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/city_coordinates.dart';
 import '../../../domain/entities/listing.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../guest_prompt_dialog.dart';
 
 /// Map view displaying listings with markers using OpenStreetMap
 /// Matches web app behavior: uses city coordinates directly
-class ListingsMapView extends StatefulWidget {
+class ListingsMapView extends ConsumerStatefulWidget {
   final List<Listing> listings;
 
   const ListingsMapView({
@@ -22,10 +25,10 @@ class ListingsMapView extends StatefulWidget {
   });
 
   @override
-  State<ListingsMapView> createState() => _ListingsMapViewState();
+  ConsumerState<ListingsMapView> createState() => _ListingsMapViewState();
 }
 
-class _ListingsMapViewState extends State<ListingsMapView> {
+class _ListingsMapViewState extends ConsumerState<ListingsMapView> {
   final MapController _mapController = MapController();
   Listing? _selectedListing;
   // Track offsets for listings to prevent marker overlap
@@ -289,7 +292,17 @@ class _ListingsMapViewState extends State<ListingsMapView> {
             bottom: 16,
             child: _ListingPreviewCard(
               listing: _selectedListing!,
-              onTap: () => context.push('/listing/${_selectedListing!.id}'),
+              onTap: () {
+                final isGuest = ref.read(isGuestProvider);
+                if (isGuest) {
+                  GuestPromptDialog.show(
+                    context,
+                    message: 'Sign up to view listing details and connect with property owners.',
+                  );
+                } else {
+                  context.push('/listing/${_selectedListing!.id}');
+                }
+              },
               onClose: () => setState(() => _selectedListing = null),
             ),
           ),
@@ -499,7 +512,7 @@ class _ListingPreviewCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            '${listing.city}${listing.country != null ? ', ${listing.country}' : ''}',
+                            '${listing.city}${listing.country.isNotEmpty ? ', ${listing.country}' : ''}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

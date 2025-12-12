@@ -1697,10 +1697,13 @@ class _IdentityVerificationScreenState extends ConsumerState<_IdentityVerificati
         ),
       );
     } else if (mounted) {
+      final state = ref.read(verificationNotifierProvider);
+      final errorMessage = state.errorMessage ?? 'Failed to submit. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to submit. Please try again.'),
+        SnackBar(
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }

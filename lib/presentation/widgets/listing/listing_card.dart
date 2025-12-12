@@ -11,6 +11,7 @@ import '../../../domain/entities/listing.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/listings_provider.dart';
 import '../../providers/messaging/messaging_provider.dart';
+import '../guest_prompt_dialog.dart';
 
 /// A beautiful listing card with glassmorphism effects
 class ListingCard extends ConsumerStatefulWidget {
@@ -165,7 +166,15 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                           isLiked: isLiked,
                           likesCount: widget.listing.likesCount,
                           onTap: () {
-                            ref.read(toggleLikeProvider(widget.listing.id))();
+                            final isGuest = ref.read(isGuestProvider);
+                            if (isGuest) {
+                              GuestPromptDialog.show(
+                                context,
+                                message: 'Sign up to save your favorite properties.',
+                              );
+                            } else {
+                              ref.read(toggleLikeProvider(widget.listing.id))();
+                            }
                           },
                         ),
                       ),
@@ -207,7 +216,10 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                     Positioned(
                       bottom: 12,
                       right: 12,
-                      child: _GlassPriceBadge(price: widget.listing.price),
+                      child: _GlassPriceBadge(
+                        price: widget.listing.price,
+                        weekendPrice: widget.listing.weekendPrice,
+                      ),
                     ),
                   ],
                 ),
@@ -320,7 +332,7 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                                 icon: Icons.phone_outlined,
                                 label: 'Call',
                                 color: AppColors.primaryOrange,
-                                onTap: () => _launchPhone(widget.listing.hostPhone!),
+                                onTap: () => _handleGuestAction(() => _launchPhone(widget.listing.hostPhone!)),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -330,7 +342,7 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                                 icon: FontAwesomeIcons.whatsapp,
                                 label: 'WhatsApp',
                                 color: const Color(0xFF25D366),
-                                onTap: () => _launchWhatsApp(widget.listing.hostPhone!),
+                                onTap: () => _handleGuestAction(() => _launchWhatsApp(widget.listing.hostPhone!)),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -340,7 +352,7 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                                 icon: Icons.chat_bubble_outline,
                                 label: 'Message',
                                 color: const Color(0xFF007AFF),
-                                onTap: () => _startConversation(),
+                                onTap: () => _handleGuestAction(() => _startConversation()),
                               ),
                             ),
                           ],
@@ -355,6 +367,18 @@ class _ListingCardState extends ConsumerState<ListingCard> {
         ),
       ),
     );
+  }
+
+  void _handleGuestAction(VoidCallback action) {
+    final isGuest = ref.read(isGuestProvider);
+    if (isGuest) {
+      GuestPromptDialog.show(
+        context,
+        message: 'Sign up to contact property owners directly.',
+      );
+    } else {
+      action();
+    }
   }
 
   Future<void> _launchPhone(String phone) async {
@@ -577,14 +601,17 @@ class _GlassBadge extends StatelessWidget {
   }
 }
 
-/// Glass price badge
+/// Glass price badge with optional weekend price
 class _GlassPriceBadge extends StatelessWidget {
   final double price;
+  final double? weekendPrice;
 
-  const _GlassPriceBadge({required this.price});
+  const _GlassPriceBadge({required this.price, this.weekendPrice});
 
   @override
   Widget build(BuildContext context) {
+    final hasWeekendPrice = weekendPrice != null && weekendPrice != price;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(
@@ -595,14 +622,50 @@ class _GlassPriceBadge extends StatelessWidget {
             color: AppColors.primaryOrange.withOpacity(0.9),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(
-            '\$${price.toStringAsFixed(0)}/night',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          child: hasWeekendPrice
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '\$${price.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      ' / ',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '\$${weekendPrice!.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      ' wknd',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  '\$${price.toStringAsFixed(0)}/night',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ),
     );

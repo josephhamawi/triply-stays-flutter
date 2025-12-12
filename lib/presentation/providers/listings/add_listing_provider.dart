@@ -238,6 +238,16 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     }
   }
 
+  void reorderImages(int oldIndex, int newIndex) {
+    final currentImages = List<XFile>.from(state.formData.selectedImages);
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final image = currentImages.removeAt(oldIndex);
+    currentImages.insert(newIndex, image);
+    updateFormData((data) => data.copyWith(selectedImages: currentImages));
+  }
+
   void toggleAmenity(String amenity) {
     final currentAmenities = List<String>.from(state.formData.amenities);
     if (currentAmenities.contains(amenity)) {

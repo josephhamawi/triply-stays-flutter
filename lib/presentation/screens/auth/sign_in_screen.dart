@@ -31,7 +31,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _biometricService = BiometricService();
 
   bool _canUseBiometric = false;
-  bool _hasSavedCredentials = false;
   bool _isBiometricLoading = false;
 
   @override
@@ -49,7 +48,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     if (mounted) {
       setState(() {
         _canUseBiometric = isAvailable && hasCredentials && isEnabled;
-        _hasSavedCredentials = hasCredentials;
       });
 
       // Auto-trigger biometric login only if user didn't just sign out
@@ -468,6 +466,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
+
+                  // Continue as Guest
+                  TextButton(
+                    onPressed: isLoading ? null : () {
+                      ref.read(authNotifierProvider.notifier).continueAsGuest();
+                    },
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),

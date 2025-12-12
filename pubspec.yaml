@@ -1,7 +1,7 @@
 name: triply_stays
 description: "Triply Stays - Vacation Rental Marketplace Mobile App"
 publish_to: 'none'
-version: 1.0.3+5
+version: 1.0.5+7
 
 environment:
   sdk: ^3.10.0
@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.1
   share_plus: ^10.1.4
   permission_handler: ^11.3.1
+  package_info_plus: ^8.0.3
 
   # Local Storage
   shared_preferences: ^2.3.4

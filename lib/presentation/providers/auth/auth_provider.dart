@@ -143,6 +143,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// Continue as guest (browse-only mode)
+  void continueAsGuest() {
+    state = const AuthState.guest();
+  }
+
   /// Sign out
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -344,6 +349,10 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref
 /// Helper providers for common auth state checks
 final isAuthenticatedProvider = Provider<bool>((ref) {
   return ref.watch(authNotifierProvider).isAuthenticated;
+});
+
+final isGuestProvider = Provider<bool>((ref) {
+  return ref.watch(authNotifierProvider).isGuest;
 });
 
 final needsEmailVerificationProvider = Provider<bool>((ref) {

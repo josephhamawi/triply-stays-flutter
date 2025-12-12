@@ -22,6 +22,7 @@ import '../screens/listing/listing_detail_screen.dart';
 import '../screens/listing/add_listing_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/main/main_shell.dart';
+import '../screens/ai/ai_assistant_screen.dart';
 
 /// App route paths
 class AppRoutes {
@@ -42,6 +43,7 @@ class AppRoutes {
   static const String booking = '/booking/:id';
   static const String chat = '/chat/:conversationId';
   static const String notifications = '/notifications';
+  static const String ai = '/ai';
 
   // Nested routes
   static const String settings = '/settings';
@@ -62,6 +64,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Email verification is optional and only done via settings
       final isLoggedIn = authState.status == AuthStatus.authenticated ||
                          authState.status == AuthStatus.emailUnverified;
+      final isGuest = authState.status == AuthStatus.guest;
       final isLoading = authState.status == AuthStatus.initial ||
                         authState.status == AuthStatus.loading;
 
@@ -83,13 +86,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.splash;
       }
 
-      // If not logged in and trying to access protected route (including splash after loading)
-      if (!isLoading && !isLoggedIn && !isAuthRoute) {
+      // If not logged in and not guest, and trying to access protected route
+      if (!isLoading && !isLoggedIn && !isGuest && !isAuthRoute) {
         return AppRoutes.signIn;
       }
 
-      // If logged in, redirect away from auth routes to home
-      if (isLoggedIn && (isAuthRoute || isSplashRoute)) {
+      // If logged in or guest, redirect away from auth routes to home
+      if ((isLoggedIn || isGuest) && (isAuthRoute || isSplashRoute)) {
         return AppRoutes.home;
       }
 
@@ -159,6 +162,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.search,
             builder: (context, state) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.ai,
+            builder: (context, state) => const AIAssistantScreen(),
           ),
           GoRoute(
             path: AppRoutes.favorites,
