@@ -294,18 +294,52 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
       } else if (e.code == 'provider-already-linked') {
         // Phone already linked to this account - that's fine, just verify
       } else {
-        rethrow;
+        // Handle other Firebase auth errors gracefully
+        String errorMessage;
+        switch (e.code) {
+          case 'invalid-verification-code':
+            errorMessage = 'Invalid code. Please check and try again.';
+            break;
+          case 'session-expired':
+            errorMessage = 'Code expired. Please request a new code.';
+            break;
+          case 'invalid-verification-id':
+            errorMessage = 'Verification session expired. Please request a new code.';
+            break;
+          default:
+            errorMessage = e.message ?? 'Verification failed. Please try again.';
+        }
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: errorMessage,
+        );
+        return false;
       }
+    } catch (e) {
+      // Handle any other unexpected errors
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Verification failed. Please try again.',
+      );
+      return false;
     }
 
     // Update user's verifications in Firestore
-    await _firestore.collection('users').doc(user.uid).update({
-      'phone': phone.trim(),
-      'verifications.phone': {
-        'verified': true,
-        'verifiedAt': FieldValue.serverTimestamp(),
-      },
-    });
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'phone': phone.trim(),
+        'verifications.phone': {
+          'verified': true,
+          'verifiedAt': FieldValue.serverTimestamp(),
+        },
+      });
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to save verification. Please try again.',
+      );
+      return false;
+    }
 
     // Clear the verification state
     state = state.copyWith(

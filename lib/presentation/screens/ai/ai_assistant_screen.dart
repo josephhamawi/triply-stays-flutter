@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 
@@ -89,8 +90,8 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
                         );
                       },
                       child: Container(
-                        width: 140,
-                        height: 140,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
@@ -105,15 +106,17 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primaryOrange.withValues(alpha: 0.4),
-                              blurRadius: 30,
-                              spreadRadius: 5,
+                              blurRadius: 20,
+                              spreadRadius: 3,
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.auto_awesome,
-                          size: 70,
-                          color: Colors.white,
+                        child: const Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.wandMagicSparkles,
+                            size: 24,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

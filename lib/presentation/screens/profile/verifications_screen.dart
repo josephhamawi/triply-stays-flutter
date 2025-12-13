@@ -1142,19 +1142,20 @@ class _PhoneVerificationScreenState extends ConsumerState<_PhoneVerificationScre
     final notifier = ref.read(verificationNotifierProvider.notifier);
     final success = await notifier.sendPhoneVerificationCode(_fullPhoneNumber);
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
       if (success) _codeSent = true;
     });
 
-    if (success && mounted) {
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Verification code sent to your phone!'),
           backgroundColor: Colors.green,
         ),
       );
-    } else if (mounted) {
+    } else {
       final state = ref.read(verificationNotifierProvider);
       final errorMessage = state.errorMessage ?? 'Failed to send code. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1180,10 +1181,12 @@ class _PhoneVerificationScreenState extends ConsumerState<_PhoneVerificationScre
     final notifier = ref.read(verificationNotifierProvider.notifier);
     final success = await notifier.verifyPhoneCode(_fullPhoneNumber, _codeController.text);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success && mounted) {
+    if (success) {
       await ref.read(authNotifierProvider.notifier).reloadUser();
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1191,7 +1194,7 @@ class _PhoneVerificationScreenState extends ConsumerState<_PhoneVerificationScre
           backgroundColor: Colors.green,
         ),
       );
-    } else if (mounted) {
+    } else {
       final state = ref.read(verificationNotifierProvider);
       final errorMessage = state.errorMessage ?? 'Invalid code. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
