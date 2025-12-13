@@ -22,6 +22,7 @@ class UserModel extends User {
     super.role,
     super.isHost,
     super.isHostProElite,
+    super.onboardingCompleted,
     super.verifications,
   });
 
@@ -70,6 +71,7 @@ class UserModel extends User {
       role: _parseRole(data['role'] as String?),
       isHost: data['isHost'] as bool? ?? false,
       isHostProElite: data['isHostProElite'] as bool? ?? false,
+      onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
       verifications: UserVerifications.fromMap(data['verifications'] as Map<String, dynamic>?),
     );
   }
@@ -100,18 +102,30 @@ class UserModel extends User {
       role: _parseRole(map['role'] as String?),
       isHost: map['isHost'] as bool? ?? false,
       isHostProElite: map['isHostProElite'] as bool? ?? false,
+      onboardingCompleted: map['onboardingCompleted'] as bool? ?? false,
       verifications: UserVerifications.fromMap(map['verifications'] as Map<String, dynamic>?),
     );
   }
 
   /// Convert to Firestore map
+  /// Includes 'name' field for web app compatibility (web saves full name separately)
   Map<String, dynamic> toFirestore() {
+    // Build full name for web app compatibility
+    String? fullName;
+    if (firstName != null || lastName != null) {
+      fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+    } else {
+      fullName = displayName;
+    }
+
     return {
       'email': email,
       'displayName': displayName,
+      'name': fullName, // Web app compatibility - stores full name separately
       'firstName': firstName,
       'lastName': lastName,
       'photoUrl': photoUrl,
+      'photoURL': photoUrl, // Web app compatibility - uses photoURL
       'emailVerified': emailVerified,
       'phone': phoneNumber,
       'hasWhatsApp': hasWhatsApp,
@@ -121,16 +135,26 @@ class UserModel extends User {
       'role': role.name,
       'isHost': isHost,
       'isHostProElite': isHostProElite,
+      'onboardingCompleted': onboardingCompleted,
       'verifications': verifications.toMap(),
     };
   }
 
   /// Convert to map (for JSON)
   Map<String, dynamic> toMap() {
+    // Build full name for consistency
+    String? fullName;
+    if (firstName != null || lastName != null) {
+      fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+    } else {
+      fullName = displayName;
+    }
+
     return {
       'id': id,
       'email': email,
       'displayName': displayName,
+      'name': fullName,
       'firstName': firstName,
       'lastName': lastName,
       'photoUrl': photoUrl,
@@ -143,6 +167,7 @@ class UserModel extends User {
       'role': role.name,
       'isHost': isHost,
       'isHostProElite': isHostProElite,
+      'onboardingCompleted': onboardingCompleted,
       'verifications': verifications.toMap(),
     };
   }
@@ -179,6 +204,7 @@ class UserModel extends User {
       role: _parseRole(firestoreData['role'] as String?),
       isHost: firestoreData['isHost'] as bool? ?? false,
       isHostProElite: firestoreData['isHostProElite'] as bool? ?? false,
+      onboardingCompleted: firestoreData['onboardingCompleted'] as bool? ?? false,
       verifications: UserVerifications.fromMap(firestoreData['verifications'] as Map<String, dynamic>?),
     );
   }
@@ -201,6 +227,7 @@ class UserModel extends User {
       role: role,
       isHost: isHost,
       isHostProElite: isHostProElite,
+      onboardingCompleted: onboardingCompleted,
       verifications: verifications,
     );
   }

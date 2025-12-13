@@ -19,6 +19,7 @@ class User {
   final UserRole role;
   final bool isHost;
   final bool isHostProElite;
+  final bool onboardingCompleted;
   final UserVerifications verifications;
 
   const User({
@@ -37,6 +38,7 @@ class User {
     this.role = UserRole.guest,
     this.isHost = false,
     this.isHostProElite = false,
+    this.onboardingCompleted = false,
     this.verifications = const UserVerifications(),
   });
 
@@ -67,6 +69,7 @@ class User {
         role = UserRole.guest,
         isHost = false,
         isHostProElite = false,
+        onboardingCompleted = false,
         verifications = const UserVerifications();
 
   bool get isEmpty => id.isEmpty;
@@ -88,6 +91,7 @@ class User {
     UserRole? role,
     bool? isHost,
     bool? isHostProElite,
+    bool? onboardingCompleted,
     UserVerifications? verifications,
   }) {
     return User(
@@ -106,6 +110,7 @@ class User {
       role: role ?? this.role,
       isHost: isHost ?? this.isHost,
       isHostProElite: isHostProElite ?? this.isHostProElite,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       verifications: verifications ?? this.verifications,
     );
   }
