@@ -872,38 +872,44 @@ class _PhotosStep extends ConsumerWidget {
           if (state.formData.selectedImages.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Long press and drag to reorder. First photo is the cover.',
+              'Tap a photo to set it as cover. Tap × to remove.',
               style: TextStyle(color: AppColors.primaryOrange, fontSize: 12),
             ),
           ],
           const SizedBox(height: 16),
           if (state.formData.selectedImages.isNotEmpty)
-            ReorderableListView.builder(
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              onReorder: notifier.reorderImages,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1,
+              ),
               itemCount: state.formData.selectedImages.length,
-              proxyDecorator: (child, index, animation) {
-                return Material(
-                  elevation: 4,
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  child: child,
-                );
-              },
               itemBuilder: (context, index) {
                 final image = state.formData.selectedImages[index];
-                return ReorderableDragStartListener(
-                  key: ValueKey(image.path),
-                  index: index,
+                final isCover = index == 0;
+                return GestureDetector(
+                  onTap: () {
+                    // Move tapped image to first position (make it cover)
+                    if (index != 0) {
+                      notifier.reorderImages(index, 0);
+                    }
+                  },
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    height: 200,
+                    key: ValueKey(image.path),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: isCover
+                          ? Border.all(color: AppColors.primaryOrange, width: 3)
+                          : null,
+                    ),
                     child: Stack(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(isCover ? 9 : 12),
                           child: Image.file(
                             File(image.path),
                             fit: BoxFit.cover,
@@ -912,13 +918,13 @@ class _PhotosStep extends ConsumerWidget {
                           ),
                         ),
                         // Cover badge
-                        if (index == 0)
+                        if (isCover)
                           Positioned(
                             top: 8,
                             left: 8,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
+                                horizontal: 8,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
@@ -926,10 +932,10 @@ class _PhotosStep extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
-                                'Cover Photo',
+                                'Cover',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -941,8 +947,8 @@ class _PhotosStep extends ConsumerWidget {
                           left: 8,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 6,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.black54,
@@ -952,26 +958,9 @@ class _PhotosStep extends ConsumerWidget {
                               '${index + 1}',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
-                          ),
-                        ),
-                        // Drag handle
-                        Positioned(
-                          bottom: 8,
-                          right: 48,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(
-                              Icons.drag_handle,
-                              color: Colors.white,
-                              size: 20,
                             ),
                           ),
                         ),
@@ -982,7 +971,7 @@ class _PhotosStep extends ConsumerWidget {
                           child: GestureDetector(
                             onTap: () => notifier.removeImage(index),
                             child: Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(5),
                               decoration: const BoxDecoration(
                                 color: Colors.black54,
                                 shape: BoxShape.circle,
@@ -990,7 +979,7 @@ class _PhotosStep extends ConsumerWidget {
                               child: const Icon(
                                 Icons.close,
                                 color: Colors.white,
-                                size: 18,
+                                size: 16,
                               ),
                             ),
                           ),
