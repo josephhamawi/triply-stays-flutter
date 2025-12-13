@@ -27,8 +27,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       path: '/home',
     ),
     _NavItem(
-      icon: Icons.auto_awesome_outlined,
-      activeIcon: Icons.auto_awesome,
+      icon: Icons.smart_toy_outlined,
+      activeIcon: Icons.smart_toy,
       label: 'AI',
       path: '/ai',
     ),
