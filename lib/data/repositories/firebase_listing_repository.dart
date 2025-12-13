@@ -254,9 +254,75 @@ class FirebaseListingRepository implements ListingRepository {
     ];
   }
 
+  /// Comprehensive list of Lebanese cities
+  static const List<String> _lebanonCities = [
+    'Aley',
+    'Amchit',
+    'Anfeh',
+    'Baabda',
+    'Baalbek',
+    'Barouk',
+    'Batroun',
+    'Bcharre',
+    'Beirut',
+    'Bekaa',
+    'Bhamdoun',
+    'Bickfaya',
+    'Bint Jbeil',
+    'Broummana',
+    'Byblos',
+    'Cedars',
+    'Chabtine',
+    'Chouf',
+    'Dbayeh',
+    'Deir el Qamar',
+    'Douma',
+    'Ehden',
+    'Faqra',
+    'Faraya',
+    'Ghazir',
+    'Hamat',
+    'Hammana',
+    'Harissa',
+    'Hermel',
+    'Jbeil',
+    'Jezzine',
+    'Jounieh',
+    'Kaslik',
+    'Keserwan',
+    'Kfardebian',
+    'Koura',
+    'Laqlouq',
+    'Maamelten',
+    'Mansourieh',
+    'Metn',
+    'Mzaar',
+    'Nabatieh',
+    'Nahr Ibrahim',
+    'Qadisha',
+    'Rabieh',
+    'Rachaya',
+    'Raifoun',
+    'Saida',
+    'Sidon',
+    'Sofar',
+    'Tannourine',
+    'Tripoli',
+    'Tyre',
+    'Zahle',
+    'Zgharta',
+    'Zouk Mikael',
+    'Zouk Mosbeh',
+  ];
+
   @override
   Future<List<String>> getCitiesForCountry(String countryCode) async {
-    // Get unique cities from listings for this country
+    // Return predefined list for Lebanon
+    if (countryCode == 'LB') {
+      return _lebanonCities;
+    }
+
+    // For other countries, get unique cities from listings
     final snapshot = await _listingsRef
         .where('country', isEqualTo: countryCode)
         .get();
