@@ -487,10 +487,25 @@ class FirebaseAuthRepository implements AuthRepository {
     String displayName, {
     bool emailVerified = false,
   }) async {
+    // Parse displayName into firstName and lastName
+    String? firstName;
+    String? lastName;
+    if (displayName.isNotEmpty) {
+      final nameParts = displayName.trim().split(' ');
+      if (nameParts.isNotEmpty) {
+        firstName = nameParts.first;
+        if (nameParts.length > 1) {
+          lastName = nameParts.sublist(1).join(' ');
+        }
+      }
+    }
+
     final userModel = UserModel(
       id: user.uid,
       email: user.email ?? '',
       displayName: displayName,
+      firstName: firstName,
+      lastName: lastName,
       photoUrl: user.photoURL,
       emailVerified: emailVerified,
       createdAt: DateTime.now(),
