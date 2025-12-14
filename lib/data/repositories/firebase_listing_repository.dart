@@ -176,7 +176,7 @@ class FirebaseListingRepository implements ListingRepository {
   @override
   Future<void> incrementViews(String listingId) async {
     await _listingsRef.doc(listingId).update({
-      'views': FieldValue.increment(1),
+      'viewCount': FieldValue.increment(1),
     });
   }
 

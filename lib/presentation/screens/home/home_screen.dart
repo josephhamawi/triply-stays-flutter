@@ -158,6 +158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _selectedCountry = null;
       _selectedCity = null;
       _availableCities = [];
+      _searchController.clear();
     });
     ref.read(listingFilterProvider.notifier).state = const ListingFilter();
   }
@@ -933,7 +934,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         itemCount: categories.length + 1, // +1 for "All" option
         itemBuilder: (context, index) {
           if (index == 0) {
-            // All category
+            // All category - clears all filters when tapped
             final isSelected = selected == null;
             return _CategoryChip(
               icon: Icons.grid_view,
@@ -941,8 +942,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               isSelected: isSelected,
               onTap: () {
                 ref.read(selectedCategoryProvider.notifier).state = null;
-                ref.read(listingFilterProvider.notifier).state =
-                    ref.read(listingFilterProvider).copyWith(category: null);
+                _clearFilters();
               },
             );
           }
