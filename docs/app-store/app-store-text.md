@@ -28,14 +28,15 @@ Thank you for using Triply Stays!
 
 ---
 
-## Current Release: Version 1.0.8
+## Current Release: Version 1.0.9
 
 ```
-Version 1.0.8
+Version 1.0.9
 
-• All filter button now resets all active filters
-• Views and likes sync across mobile and web
-• Performance improvements and bug fixes
+• Hosts can now edit their existing listings
+• Update property details, photos, pricing, and amenities anytime
+• Improved photo management when editing listings
+• Bug fixes and performance improvements
 
 Thank you for using Triply Stays!
 ```
@@ -93,6 +94,7 @@ vacation,rental,lebanon,chalet,villa,apartment,travel,booking,holiday,beach,moun
 
 | Version | Build | Date | Changes |
 |---------|-------|------|---------|
+| 1.0.9 | 11 | Jan 2025 | Hosts can edit listings |
 | 1.0.8 | 10 | Dec 2024 | Filter reset, views/likes sync |
 | 1.0.7 | 9 | Dec 2024 | Previous release |
 

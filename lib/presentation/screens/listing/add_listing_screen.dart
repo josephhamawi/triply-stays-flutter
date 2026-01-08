@@ -2,15 +2,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/listing.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/listings/add_listing_provider.dart';
 import '../../providers/listings/listings_provider.dart';
 
-/// Screen for adding a new listing
+/// Screen for adding or editing a listing
 class AddListingScreen extends ConsumerStatefulWidget {
-  const AddListingScreen({super.key});
+  final Listing? listingToEdit;
+
+  const AddListingScreen({super.key, this.listingToEdit});
 
   @override
   ConsumerState<AddListingScreen> createState() => _AddListingScreenState();
@@ -18,6 +22,9 @@ class AddListingScreen extends ConsumerStatefulWidget {
 
 class _AddListingScreenState extends ConsumerState<AddListingScreen> {
   final PageController _pageController = PageController();
+  bool _initialized = false;
+
+  bool get isEditMode => widget.listingToEdit != null;
 
   final List<String> _stepTitles = [
     'Basic Info',
@@ -33,6 +40,17 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _initializeForEdit() {
+    if (_initialized || !isEditMode) return;
+    _initialized = true;
+
+    final listing = widget.listingToEdit!;
+    final notifier = ref.read(addListingProvider.notifier);
+
+    // Initialize the form with existing listing data
+    notifier.initializeForEdit(listing);
   }
 
   Widget _buildEmailVerificationRequired(BuildContext context) {
@@ -135,6 +153,9 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
     if (user == null || !user.emailVerified) {
       return _buildEmailVerificationRequired(context);
     }
+
+    // Initialize form data for edit mode
+    _initializeForEdit();
 
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
@@ -280,7 +301,7 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text(isLastStep ? 'Submit Listing' : 'Next'),
+              child: Text(isLastStep ? (isEditMode ? 'Update Listing' : 'Submit Listing') : 'Next'),
             ),
         ],
       ),
@@ -311,7 +332,7 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
           const SizedBox(width: 8),
           Text(state.isUploading
               ? 'Uploading ${state.currentUploadIndex}/${state.totalUploads}'
-              : 'Creating...'),
+              : (isEditMode ? 'Updating...' : 'Creating...')),
         ],
       ),
     );
@@ -321,9 +342,11 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Discard Listing?'),
-        content: const Text(
-          'Are you sure you want to leave? Your listing will not be saved.',
+        title: Text(isEditMode ? 'Discard Changes?' : 'Discard Listing?'),
+        content: Text(
+          isEditMode
+              ? 'Are you sure you want to leave? Your changes will not be saved.'
+              : 'Are you sure you want to leave? Your listing will not be saved.',
         ),
         actions: [
           TextButton(
@@ -342,11 +365,11 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
   }
 
   Future<void> _submitListing(AddListingNotifier notifier) async {
-    final success = await notifier.submitListing();
+    final success = await notifier.submitListing(isEditMode: isEditMode, listingId: widget.listingToEdit?.id);
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Listing submitted for review!'),
+        SnackBar(
+          content: Text(isEditMode ? 'Listing updated successfully!' : 'Listing submitted for review!'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -355,7 +378,7 @@ class _AddListingScreenState extends ConsumerState<AddListingScreen> {
       final errorMessage = ref.read(addListingProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessage ?? 'Failed to submit listing'),
+          content: Text(errorMessage ?? (isEditMode ? 'Failed to update listing' : 'Failed to submit listing')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -823,6 +846,10 @@ class _PhotosStep extends ConsumerWidget {
     final state = ref.watch(addListingProvider);
     final notifier = ref.read(addListingProvider.notifier);
 
+    final existingImages = state.formData.existingImageUrls;
+    final newImages = state.formData.selectedImages;
+    final totalImages = existingImages.length + newImages.length;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -839,26 +866,26 @@ class _PhotosStep extends ConsumerWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: notifier.pickImages,
+                  onPressed: totalImages >= 10 ? null : notifier.pickImages,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Gallery'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: AppColors.primaryOrange),
-                    foregroundColor: AppColors.primaryOrange,
+                    side: BorderSide(color: totalImages >= 10 ? Colors.grey : AppColors.primaryOrange),
+                    foregroundColor: totalImages >= 10 ? Colors.grey : AppColors.primaryOrange,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: notifier.takePhoto,
+                  onPressed: totalImages >= 10 ? null : notifier.takePhoto,
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Camera'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: AppColors.primaryOrange),
-                    foregroundColor: AppColors.primaryOrange,
+                    side: BorderSide(color: totalImages >= 10 ? Colors.grey : AppColors.primaryOrange),
+                    foregroundColor: totalImages >= 10 ? Colors.grey : AppColors.primaryOrange,
                   ),
                 ),
               ),
@@ -866,10 +893,10 @@ class _PhotosStep extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '${state.formData.selectedImages.length}/10 photos selected',
+            '$totalImages/10 photos',
             style: TextStyle(color: AppColors.textSecondary),
           ),
-          if (state.formData.selectedImages.isNotEmpty) ...[
+          if (totalImages > 0) ...[
             const SizedBox(height: 4),
             Text(
               'Tap a photo to set it as cover. Tap × to remove.',
@@ -877,7 +904,7 @@ class _PhotosStep extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 16),
-          if (state.formData.selectedImages.isNotEmpty)
+          if (totalImages > 0)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -887,10 +914,11 @@ class _PhotosStep extends ConsumerWidget {
                 mainAxisSpacing: 12,
                 childAspectRatio: 1,
               ),
-              itemCount: state.formData.selectedImages.length,
+              itemCount: totalImages,
               itemBuilder: (context, index) {
-                final image = state.formData.selectedImages[index];
+                final isExisting = index < existingImages.length;
                 final isCover = index == 0;
+
                 return GestureDetector(
                   onTap: () {
                     // Move tapped image to first position (make it cover)
@@ -899,7 +927,7 @@ class _PhotosStep extends ConsumerWidget {
                     }
                   },
                   child: Container(
-                    key: ValueKey(image.path),
+                    key: ValueKey(isExisting ? existingImages[index] : newImages[index - existingImages.length].path),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: isCover
@@ -910,12 +938,31 @@ class _PhotosStep extends ConsumerWidget {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(isCover ? 9 : 12),
-                          child: Image.file(
-                            File(image.path),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          ),
+                          child: isExisting
+                              ? CachedNetworkImage(
+                                  imageUrl: existingImages[index],
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  placeholder: (context, url) => Container(
+                                    color: AppColors.backgroundLight,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.primaryOrange,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: AppColors.backgroundLight,
+                                    child: const Icon(Icons.image_not_supported),
+                                  ),
+                                )
+                              : Image.file(
+                                  File(newImages[index - existingImages.length].path),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
                         ),
                         // Cover badge
                         if (isCover)
@@ -1125,7 +1172,7 @@ class _ReviewStep extends ConsumerWidget {
           _buildReviewCard([
             _buildReviewRow(
               'Photos',
-              '${formData.selectedImages.length} photos',
+              '${formData.selectedImages.length + formData.existingImageUrls.length} photos',
             ),
             _buildReviewRow(
               'House Rules',

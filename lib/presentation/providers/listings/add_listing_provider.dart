@@ -6,6 +6,20 @@ import '../../../domain/entities/listing.dart';
 import '../auth/auth_provider.dart';
 import 'listings_provider.dart';
 
+/// Represents an image that can be either a local file (XFile) or a network URL
+class ListingImage {
+  final XFile? file;
+  final String? url;
+
+  ListingImage.file(this.file) : url = null;
+  ListingImage.url(this.url) : file = null;
+
+  bool get isFile => file != null;
+  bool get isUrl => url != null;
+
+  String get displayPath => file?.path ?? url ?? '';
+}
+
 /// Form data state for add listing
 class AddListingFormData {
   final String title;
@@ -26,6 +40,7 @@ class AddListingFormData {
   final String? rules;
   final List<XFile> selectedImages;
   final List<String> uploadedImageUrls;
+  final List<String> existingImageUrls;  // For edit mode - existing images from server
 
   const AddListingFormData({
     this.title = '',
@@ -46,6 +61,7 @@ class AddListingFormData {
     this.rules,
     this.selectedImages = const [],
     this.uploadedImageUrls = const [],
+    this.existingImageUrls = const [],
   });
 
   AddListingFormData copyWith({
@@ -67,6 +83,7 @@ class AddListingFormData {
     String? rules,
     List<XFile>? selectedImages,
     List<String>? uploadedImageUrls,
+    List<String>? existingImageUrls,
   }) {
     return AddListingFormData(
       title: title ?? this.title,
@@ -87,6 +104,7 @@ class AddListingFormData {
       rules: rules ?? this.rules,
       selectedImages: selectedImages ?? this.selectedImages,
       uploadedImageUrls: uploadedImageUrls ?? this.uploadedImageUrls,
+      existingImageUrls: existingImageUrls ?? this.existingImageUrls,
     );
   }
 
@@ -105,7 +123,7 @@ class AddListingFormData {
       beds > 0 &&
       maxGuests > 0;
 
-  bool get hasImages => selectedImages.isNotEmpty || uploadedImageUrls.isNotEmpty;
+  bool get hasImages => selectedImages.isNotEmpty || uploadedImageUrls.isNotEmpty || existingImageUrls.isNotEmpty;
 }
 
 /// State for the add listing screen
@@ -191,6 +209,33 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     state = state.copyWith(formData: updater(state.formData));
   }
 
+  /// Initialize form data with existing listing for edit mode
+  void initializeForEdit(Listing listing) {
+    state = state.copyWith(
+      formData: AddListingFormData(
+        title: listing.title,
+        description: listing.description,
+        category: listing.category ?? '',
+        listingViews: List<String>.from(listing.listingViews),
+        country: listing.country,
+        city: listing.city,
+        location: listing.location,
+        price: listing.price,
+        weekendPrice: listing.weekendPrice,
+        bedrooms: listing.bedrooms,
+        bathrooms: listing.bathrooms,
+        livingRooms: listing.livingRooms,
+        beds: listing.beds,
+        maxGuests: listing.maxGuests,
+        amenities: List<String>.from(listing.amenities),
+        rules: listing.rules,
+        selectedImages: const [],
+        uploadedImageUrls: const [],
+        existingImageUrls: List<String>.from(listing.images),
+      ),
+    );
+  }
+
   void nextStep() {
     if (state.currentStep < AddListingState.totalSteps - 1) {
       state = state.copyWith(currentStep: state.currentStep + 1);
@@ -209,18 +254,23 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     }
   }
 
+  /// Get total image count (existing + new)
+  int get totalImageCount => state.formData.existingImageUrls.length + state.formData.selectedImages.length;
+
   Future<void> pickImages() async {
-    final images = await _imageUploadService.pickImages(maxImages: 10);
+    final remainingSlots = 10 - totalImageCount;
+    if (remainingSlots <= 0) return;
+
+    final images = await _imageUploadService.pickImages(maxImages: remainingSlots);
     if (images.isNotEmpty) {
       final currentImages = List<XFile>.from(state.formData.selectedImages);
-      final remainingSlots = 10 - currentImages.length;
       currentImages.addAll(images.take(remainingSlots));
       updateFormData((data) => data.copyWith(selectedImages: currentImages));
     }
   }
 
   Future<void> takePhoto() async {
-    if (state.formData.selectedImages.length >= 10) return;
+    if (totalImageCount >= 10) return;
 
     final image = await _imageUploadService.takePhoto();
     if (image != null) {
@@ -230,22 +280,69 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     }
   }
 
+  /// Remove image at index (handles both existing and new images)
   void removeImage(int index) {
-    final currentImages = List<XFile>.from(state.formData.selectedImages);
-    if (index < currentImages.length) {
-      currentImages.removeAt(index);
-      updateFormData((data) => data.copyWith(selectedImages: currentImages));
+    final existingCount = state.formData.existingImageUrls.length;
+
+    if (index < existingCount) {
+      // Remove from existing images
+      final existingImages = List<String>.from(state.formData.existingImageUrls);
+      existingImages.removeAt(index);
+      updateFormData((data) => data.copyWith(existingImageUrls: existingImages));
+    } else {
+      // Remove from new images
+      final newIndex = index - existingCount;
+      final currentImages = List<XFile>.from(state.formData.selectedImages);
+      if (newIndex < currentImages.length) {
+        currentImages.removeAt(newIndex);
+        updateFormData((data) => data.copyWith(selectedImages: currentImages));
+      }
     }
   }
 
+  /// Reorder images (for now only supports moving new images to cover position)
   void reorderImages(int oldIndex, int newIndex) {
-    final currentImages = List<XFile>.from(state.formData.selectedImages);
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
+    final existingCount = state.formData.existingImageUrls.length;
+
+    // If moving within existing images
+    if (oldIndex < existingCount && newIndex < existingCount) {
+      final existingImages = List<String>.from(state.formData.existingImageUrls);
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final image = existingImages.removeAt(oldIndex);
+      existingImages.insert(newIndex, image);
+      updateFormData((data) => data.copyWith(existingImageUrls: existingImages));
     }
-    final image = currentImages.removeAt(oldIndex);
-    currentImages.insert(newIndex, image);
-    updateFormData((data) => data.copyWith(selectedImages: currentImages));
+    // If moving within new images only
+    else if (oldIndex >= existingCount && newIndex >= existingCount) {
+      final adjustedOld = oldIndex - existingCount;
+      var adjustedNew = newIndex - existingCount;
+      final currentImages = List<XFile>.from(state.formData.selectedImages);
+      if (adjustedOld < adjustedNew) {
+        adjustedNew -= 1;
+      }
+      final image = currentImages.removeAt(adjustedOld);
+      currentImages.insert(adjustedNew, image);
+      updateFormData((data) => data.copyWith(selectedImages: currentImages));
+    }
+    // If moving a new image to cover (position 0)
+    else if (oldIndex >= existingCount && newIndex == 0) {
+      // Move new image to front of new images, and move first existing to first position of new order
+      final existingImages = List<String>.from(state.formData.existingImageUrls);
+      final currentImages = List<XFile>.from(state.formData.selectedImages);
+      final adjustedOld = oldIndex - existingCount;
+
+      // Remove from new and add existing first to end of existing
+      final newImage = currentImages.removeAt(adjustedOld);
+      currentImages.insert(0, newImage);
+
+      // For simplicity, just reorder within new images to bring selected to front
+      updateFormData((data) => data.copyWith(
+        selectedImages: currentImages,
+        existingImageUrls: existingImages,
+      ));
+    }
   }
 
   void toggleAmenity(String amenity) {
@@ -268,7 +365,7 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
     updateFormData((data) => data.copyWith(listingViews: currentViews));
   }
 
-  Future<bool> submitListing() async {
+  Future<bool> submitListing({bool isEditMode = false, String? listingId}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -277,7 +374,7 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
       if (user == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'You must be logged in to create a listing',
+          errorMessage: 'You must be logged in to ${isEditMode ? 'update' : 'create'} a listing',
         );
         return false;
       }
@@ -285,75 +382,140 @@ class AddListingNotifier extends StateNotifier<AddListingState> {
       final repository = _ref.read(listingRepositoryProvider);
       final formData = state.formData;
 
-      // Create the listing first to get the ID
-      final listing = Listing(
-        id: '',
-        title: formData.title,
-        description: formData.description,
-        price: formData.price,
-        weekendPrice: formData.weekendPrice,
-        city: formData.city,
-        country: formData.country,
-        images: [],
-        hostId: user.id,
-        hostName: user.fullName ?? user.displayName,
-        hostPhone: user.phoneNumber,
-        hostHasWhatsApp: user.hasWhatsApp,
-        category: formData.category,
-        listingViews: formData.listingViews,
-        amenities: formData.amenities,
-        rules: formData.rules,
-        bedrooms: formData.bedrooms,
-        bathrooms: formData.bathrooms,
-        livingRooms: formData.livingRooms,
-        beds: formData.beds,
-        maxGuests: formData.maxGuests,
-        location: formData.location,
-        createdAt: DateTime.now(),
-      );
+      if (isEditMode && listingId != null) {
+        // Edit mode: Update existing listing
+        List<String> finalImageUrls = List<String>.from(formData.existingImageUrls);
 
-      // Create the listing to get the ID
-      final listingId = await repository.createListing(listing);
+        // Upload new images if any
+        if (formData.selectedImages.isNotEmpty) {
+          state = state.copyWith(
+            isUploading: true,
+            totalUploads: formData.selectedImages.length,
+          );
 
-      // Upload images
-      if (formData.selectedImages.isNotEmpty) {
-        state = state.copyWith(
-          isUploading: true,
-          totalUploads: formData.selectedImages.length,
-        );
+          final newImageUrls = await _imageUploadService.uploadListingImages(
+            listingId: listingId,
+            images: formData.selectedImages,
+            onProgress: (current, total, progress) {
+              state = state.copyWith(
+                currentUploadIndex: current,
+                totalUploads: total,
+                uploadProgress: progress,
+              );
+            },
+          );
 
-        final imageUrls = await _imageUploadService.uploadListingImages(
-          listingId: listingId,
-          images: formData.selectedImages,
-          onProgress: (current, total, progress) {
-            state = state.copyWith(
-              currentUploadIndex: current,
-              totalUploads: total,
-              uploadProgress: progress,
-            );
-          },
-        );
+          // Append new images to existing ones
+          finalImageUrls.addAll(newImageUrls);
+        }
 
-        // Update listing with image URLs
-        final updatedListing = listing.copyWith(
+        // Update the listing
+        final updatedListing = Listing(
           id: listingId,
-          images: imageUrls,
+          title: formData.title,
+          description: formData.description,
+          price: formData.price,
+          weekendPrice: formData.weekendPrice,
+          city: formData.city,
+          country: formData.country,
+          images: finalImageUrls,
+          hostId: user.id,
+          hostName: user.fullName ?? user.displayName,
+          hostPhone: user.phoneNumber,
+          hostHasWhatsApp: user.hasWhatsApp,
+          category: formData.category,
+          listingViews: formData.listingViews,
+          amenities: formData.amenities,
+          rules: formData.rules,
+          bedrooms: formData.bedrooms,
+          bathrooms: formData.bathrooms,
+          livingRooms: formData.livingRooms,
+          beds: formData.beds,
+          maxGuests: formData.maxGuests,
+          location: formData.location,
+          createdAt: DateTime.now(), // Will be ignored on update
         );
+
         await repository.updateListing(updatedListing);
+
+        state = state.copyWith(
+          isLoading: false,
+          isUploading: false,
+          createdListingId: listingId,
+        );
+
+        return true;
+      } else {
+        // Create mode: Create new listing
+        final listing = Listing(
+          id: '',
+          title: formData.title,
+          description: formData.description,
+          price: formData.price,
+          weekendPrice: formData.weekendPrice,
+          city: formData.city,
+          country: formData.country,
+          images: [],
+          hostId: user.id,
+          hostName: user.fullName ?? user.displayName,
+          hostPhone: user.phoneNumber,
+          hostHasWhatsApp: user.hasWhatsApp,
+          category: formData.category,
+          listingViews: formData.listingViews,
+          amenities: formData.amenities,
+          rules: formData.rules,
+          bedrooms: formData.bedrooms,
+          bathrooms: formData.bathrooms,
+          livingRooms: formData.livingRooms,
+          beds: formData.beds,
+          maxGuests: formData.maxGuests,
+          location: formData.location,
+          createdAt: DateTime.now(),
+        );
+
+        // Create the listing to get the ID
+        final newListingId = await repository.createListing(listing);
+
+        // Upload images
+        if (formData.selectedImages.isNotEmpty) {
+          state = state.copyWith(
+            isUploading: true,
+            totalUploads: formData.selectedImages.length,
+          );
+
+          final imageUrls = await _imageUploadService.uploadListingImages(
+            listingId: newListingId,
+            images: formData.selectedImages,
+            onProgress: (current, total, progress) {
+              state = state.copyWith(
+                currentUploadIndex: current,
+                totalUploads: total,
+                uploadProgress: progress,
+              );
+            },
+          );
+
+          // Update listing with image URLs
+          final updatedListing = listing.copyWith(
+            id: newListingId,
+            images: imageUrls,
+          );
+          await repository.updateListing(updatedListing);
+        }
+
+        state = state.copyWith(
+          isLoading: false,
+          isUploading: false,
+          createdListingId: newListingId,
+        );
+
+        return true;
       }
-
-      state = state.copyWith(
-        isLoading: false,
-        isUploading: false,
-        createdListingId: listingId,
-      );
-
-      return true;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         isUploading: false,
-        errorMessage: 'Failed to create listing: ${e.toString()}',
+        errorMessage: 'Failed to ${isEditMode ? 'update' : 'create'} listing: ${e.toString()}',
       );
       return false;
     }

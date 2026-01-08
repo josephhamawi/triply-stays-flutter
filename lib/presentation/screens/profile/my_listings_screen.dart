@@ -23,6 +23,18 @@ class MyListingsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _navigateToEditListing(BuildContext context, WidgetRef ref, Listing listing) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddListingScreen(listingToEdit: listing),
+      ),
+    );
+    if (result == true) {
+      ref.invalidate(myListingsProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listingsAsync = ref.watch(myListingsProvider);
@@ -72,7 +84,7 @@ class MyListingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               itemCount: listings.length,
               itemBuilder: (context, index) {
-                return _buildListingCard(context, listings[index]);
+                return _buildListingCard(context, ref, listings[index]);
               },
             ),
           );
@@ -174,7 +186,7 @@ class MyListingsScreen extends ConsumerWidget {
     });
   }
 
-  Widget _buildListingCard(BuildContext context, Listing listing) {
+  Widget _buildListingCard(BuildContext context, WidgetRef ref, Listing listing) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -294,15 +306,29 @@ class MyListingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    listing.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          listing.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      // Edit button
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: AppColors.primaryOrange, size: 22),
+                        onPressed: () => _navigateToEditListing(context, ref, listing),
+                        tooltip: 'Edit Listing',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
