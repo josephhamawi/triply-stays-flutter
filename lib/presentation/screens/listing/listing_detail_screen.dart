@@ -287,13 +287,19 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     setState(() => _currentImageIndex = index);
                   },
                   itemBuilder: (context, index) {
+                    // Calculate proper cache size based on device pixel ratio
+                    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+                    final cacheWidth = (MediaQuery.of(context).size.width * devicePixelRatio).toInt();
+                    final cacheHeight = (300 * devicePixelRatio).toInt();
                     return GestureDetector(
                       onTap: () {
-                        // TODO: Open full screen gallery
+                        _openFullScreenGallery(images, index);
                       },
                       child: CachedNetworkImage(
                         imageUrl: images[index],
                         fit: BoxFit.cover,
+                        memCacheWidth: cacheWidth,
+                        memCacheHeight: cacheHeight,
                         placeholder: (context, url) => Container(
                           color: AppColors.backgroundLight,
                           child: const Center(
@@ -832,6 +838,189 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openFullScreenGallery(List<String> images, int initialIndex) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullScreenGallery(
+            images: images,
+            initialIndex: initialIndex,
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+}
+
+/// Full screen image gallery with zoom and swipe
+class _FullScreenGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenGallery({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
+}
+
+class _FullScreenGalleryState extends State<_FullScreenGallery> {
+  late PageController _pageController;
+  late int _currentIndex;
+  final TransformationController _transformationController = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Image gallery with zoom
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+              _resetZoom();
+            },
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                transformationController: index == _currentIndex ? _transformationController : null,
+                minScale: 1.0,
+                maxScale: 4.0,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.images[index],
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryOrange,
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image_outlined,
+                      size: 64,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Close button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+
+          // Image counter
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_currentIndex + 1} / ${widget.images.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+
+          // Page indicators at bottom
+          if (widget.images.length > 1)
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 32,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.images.length,
+                  (index) => Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: index == _currentIndex
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Hint text
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 8,
+            left: 0,
+            right: 0,
+            child: const Center(
+              child: Text(
+                'Pinch to zoom • Swipe to navigate',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ),
         ],
       ),

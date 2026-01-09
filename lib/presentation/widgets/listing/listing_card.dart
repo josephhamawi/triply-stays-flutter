@@ -56,11 +56,14 @@ class _ListingCardState extends ConsumerState<ListingCard> {
     if (_imagesPreloaded) return;
     _imagesPreloaded = true;
     final images = widget.listing.images;
+    // Get device pixel ratio for high quality images
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final cacheWidth = (MediaQuery.of(context).size.width * devicePixelRatio).toInt();
     for (final imageUrl in images) {
       precacheImage(
         CachedNetworkImageProvider(
           imageUrl,
-          maxWidth: 800,
+          maxWidth: cacheWidth,
         ),
         context,
       );
@@ -126,12 +129,16 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                                 setState(() => _currentImageIndex = index);
                               },
                               itemBuilder: (context, index) {
+                                // Calculate proper cache size based on device pixel ratio
+                                final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+                                final cacheWidth = (MediaQuery.of(context).size.width * devicePixelRatio).toInt();
                                 return CachedNetworkImage(
                                   imageUrl: images[index],
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 220,
-                                  memCacheWidth: 800,
+                                  memCacheWidth: cacheWidth,
+                                  memCacheHeight: (220 * devicePixelRatio).toInt(),
                                   fadeInDuration: const Duration(milliseconds: 150),
                                   fadeOutDuration: const Duration(milliseconds: 150),
                                   placeholder: (context, url) => Container(
