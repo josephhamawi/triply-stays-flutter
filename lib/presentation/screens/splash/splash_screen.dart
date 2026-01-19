@@ -54,7 +54,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _checkNavigationTarget() async {
     if (!mounted || _navigationHandled) return;
 
-    final authState = ref.read(authNotifierProvider);
+    // Wait for auth state with timeout (in case Firebase didn't initialize)
+    var authState = ref.read(authNotifierProvider);
+
+    // If still loading, wait up to 3 seconds for auth to resolve
+    if (authState.status == AuthStatus.initial || authState.isLoading) {
+      for (int i = 0; i < 6; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        authState = ref.read(authNotifierProvider);
+        if (authState.status != AuthStatus.initial && !authState.isLoading) {
+          break;
+        }
+      }
+    }
+
+    if (!mounted || _navigationHandled) return;
+
     // Treat both authenticated and emailUnverified as logged in
     // Email verification is optional and only done via settings
     final isLoggedIn = authState.status == AuthStatus.authenticated ||
