@@ -49,53 +49,84 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Check onboarding and auth after animation
     Future.delayed(const Duration(milliseconds: 1500), _checkNavigationTarget);
+
+    // Absolute safety timeout - force navigation after 5 seconds no matter what
+    Future.delayed(const Duration(seconds: 5), _forceNavigate);
+  }
+
+  void _forceNavigate() {
+    if (!mounted || _navigationHandled) return;
+    debugPrint('Force navigating due to timeout');
+    _navigationHandled = true;
+    context.go(AppRoutes.onboarding);
   }
 
   Future<void> _checkNavigationTarget() async {
     if (!mounted || _navigationHandled) return;
 
-    // Wait for auth state with timeout (in case Firebase didn't initialize)
-    var authState = ref.read(authNotifierProvider);
+    try {
+      // Try to get auth state with timeout
+      bool isLoggedIn = false;
 
-    // If still loading, wait up to 3 seconds for auth to resolve
-    if (authState.status == AuthStatus.initial || authState.isLoading) {
-      for (int i = 0; i < 6; i++) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
-        authState = ref.read(authNotifierProvider);
-        if (authState.status != AuthStatus.initial && !authState.isLoading) {
-          break;
+      try {
+        var authState = ref.read(authNotifierProvider);
+
+        // If still loading, wait up to 2 seconds for auth to resolve
+        if (authState.status == AuthStatus.initial || authState.isLoading) {
+          for (int i = 0; i < 4; i++) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (!mounted) return;
+            authState = ref.read(authNotifierProvider);
+            if (authState.status != AuthStatus.initial && !authState.isLoading) {
+              break;
+            }
+          }
         }
+
+        // Treat both authenticated and emailUnverified as logged in
+        isLoggedIn = authState.status == AuthStatus.authenticated ||
+                     authState.status == AuthStatus.emailUnverified;
+      } catch (e) {
+        // Firebase/auth failed - treat as not logged in
+        debugPrint('Auth check failed: $e');
+        isLoggedIn = false;
       }
-    }
 
-    if (!mounted || _navigationHandled) return;
+      if (!mounted || _navigationHandled) return;
 
-    // Treat both authenticated and emailUnverified as logged in
-    // Email verification is optional and only done via settings
-    final isLoggedIn = authState.status == AuthStatus.authenticated ||
-                       authState.status == AuthStatus.emailUnverified;
+      // If user is logged in, go to home
+      if (isLoggedIn) {
+        _navigationHandled = true;
+        context.go(AppRoutes.home);
+        return;
+      }
 
-    // If user is logged in, go to home
-    if (isLoggedIn) {
+      // Check if onboarding is complete
+      bool hasCompletedOnboarding = false;
+      try {
+        hasCompletedOnboarding = await OnboardingScreen.hasCompletedOnboarding();
+      } catch (e) {
+        debugPrint('Onboarding check failed: $e');
+        hasCompletedOnboarding = false;
+      }
+
+      if (!mounted || _navigationHandled) return;
+
       _navigationHandled = true;
-      context.go(AppRoutes.home);
-      return;
-    }
 
-    // Check if onboarding is complete
-    final hasCompletedOnboarding = await OnboardingScreen.hasCompletedOnboarding();
-
-    if (!mounted) return;
-
-    _navigationHandled = true;
-
-    if (!hasCompletedOnboarding) {
-      // First time user - show onboarding
+      if (!hasCompletedOnboarding) {
+        // First time user - show onboarding
+        context.go(AppRoutes.onboarding);
+      } else {
+        // Returning user - go to sign in
+        context.go(AppRoutes.signIn);
+      }
+    } catch (e) {
+      // Safety fallback - go to onboarding if everything fails
+      debugPrint('Navigation check failed completely: $e');
+      if (!mounted || _navigationHandled) return;
+      _navigationHandled = true;
       context.go(AppRoutes.onboarding);
-    } else {
-      // Returning user - go to sign in
-      context.go(AppRoutes.signIn);
     }
   }
 

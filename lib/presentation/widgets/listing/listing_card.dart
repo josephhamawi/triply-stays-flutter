@@ -328,12 +328,12 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                         ],
                       ),
                       // Contact buttons row
-                      if (widget.listing.hostPhone != null &&
-                          widget.listing.hostPhone!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            // Phone call button
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          // Phone call button - only show if host has phone
+                          if (widget.listing.hostPhone != null &&
+                              widget.listing.hostPhone!.isNotEmpty) ...[
                             Expanded(
                               child: _ContactButton(
                                 icon: Icons.phone_outlined,
@@ -353,18 +353,18 @@ class _ListingCardState extends ConsumerState<ListingCard> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // In-app Message button
-                            Expanded(
-                              child: _ContactButton(
-                                icon: Icons.chat_bubble_outline,
-                                label: 'Message',
-                                color: const Color(0xFF007AFF),
-                                onTap: () => _handleGuestAction(() => _startConversation()),
-                              ),
-                            ),
                           ],
-                        ),
-                      ],
+                          // In-app Message button - always show
+                          Expanded(
+                            child: _ContactButton(
+                              icon: Icons.chat_bubble_outline,
+                              label: 'Message',
+                              color: const Color(0xFF007AFF),
+                              onTap: () => _handleGuestAction(() => _startConversation()),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

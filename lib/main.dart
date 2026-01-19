@@ -9,13 +9,21 @@ import 'presentation/navigation/app_router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // TODO: Initialize Hive for local storage
-  // await Hive.initFlutter();
+  // Initialize Firebase with timeout - don't block app startup
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        debugPrint('Firebase initialization timed out');
+        throw Exception('Firebase timeout');
+      },
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+    // Continue without Firebase - app will handle this gracefully
+  }
 
   runApp(
     const ProviderScope(

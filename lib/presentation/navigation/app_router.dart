@@ -58,46 +58,63 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     refreshListenable: RouterRefreshStream(ref),
     redirect: (context, state) {
-      // Read current auth state inside redirect (called when RouterRefreshStream notifies)
-      final authState = ref.read(authNotifierProvider);
-      // Treat both authenticated and emailUnverified as "logged in"
-      // Email verification is optional and only done via settings
-      final isLoggedIn = authState.status == AuthStatus.authenticated ||
-                         authState.status == AuthStatus.emailUnverified;
-      final isGuest = authState.status == AuthStatus.guest;
-      final isLoading = authState.status == AuthStatus.initial ||
-                        authState.status == AuthStatus.loading;
+      try {
+        // Read current auth state inside redirect (called when RouterRefreshStream notifies)
+        final authState = ref.read(authNotifierProvider);
+        // Treat both authenticated and emailUnverified as "logged in"
+        // Email verification is optional and only done via settings
+        final isLoggedIn = authState.status == AuthStatus.authenticated ||
+                           authState.status == AuthStatus.emailUnverified;
+        final isGuest = authState.status == AuthStatus.guest;
+        final isLoading = authState.status == AuthStatus.initial ||
+                          authState.status == AuthStatus.loading;
+        final isError = authState.status == AuthStatus.error;
 
-      final currentPath = state.matchedLocation;
+        final currentPath = state.matchedLocation;
 
-      // Auth routes that don't require authentication
-      final authRoutes = [
-        AppRoutes.signIn,
-        AppRoutes.signUp,
-        AppRoutes.forgotPassword,
-        AppRoutes.onboarding,
-      ];
+        // Auth routes that don't require authentication
+        final authRoutes = [
+          AppRoutes.signIn,
+          AppRoutes.signUp,
+          AppRoutes.forgotPassword,
+          AppRoutes.onboarding,
+        ];
 
-      final isAuthRoute = authRoutes.contains(currentPath);
-      final isSplashRoute = currentPath == AppRoutes.splash;
+        final isAuthRoute = authRoutes.contains(currentPath);
+        final isSplashRoute = currentPath == AppRoutes.splash;
 
-      // If still loading, stay on splash
-      if (isLoading && !isSplashRoute) {
-        return AppRoutes.splash;
+        // If auth errored (Firebase failed), treat as unauthenticated and allow auth routes
+        if (isError && !isAuthRoute && !isSplashRoute) {
+          return AppRoutes.signIn;
+        }
+
+        // If still loading and not on splash or auth route, stay on splash
+        // But allow navigation to auth routes even during loading
+        if (isLoading && !isSplashRoute && !isAuthRoute) {
+          return AppRoutes.splash;
+        }
+
+        // If not logged in and not guest, and trying to access protected route
+        if (!isLoading && !isLoggedIn && !isGuest && !isAuthRoute) {
+          return AppRoutes.signIn;
+        }
+
+        // If logged in or guest, redirect away from auth routes to home
+        if ((isLoggedIn || isGuest) && (isAuthRoute || isSplashRoute)) {
+          return AppRoutes.home;
+        }
+
+        // No redirect needed
+        return null;
+      } catch (e) {
+        // If auth state read fails, allow navigation to auth routes
+        debugPrint('Router redirect error: $e');
+        final currentPath = state.matchedLocation;
+        if (currentPath == AppRoutes.splash) {
+          return AppRoutes.onboarding;
+        }
+        return null;
       }
-
-      // If not logged in and not guest, and trying to access protected route
-      if (!isLoading && !isLoggedIn && !isGuest && !isAuthRoute) {
-        return AppRoutes.signIn;
-      }
-
-      // If logged in or guest, redirect away from auth routes to home
-      if ((isLoggedIn || isGuest) && (isAuthRoute || isSplashRoute)) {
-        return AppRoutes.home;
-      }
-
-      // No redirect needed
-      return null;
     },
     routes: [
       // Splash
@@ -259,13 +276,21 @@ final routerProvider = Provider<GoRouter>((ref) {
 /// Listenable that notifies GoRouter when auth status changes
 class RouterRefreshStream extends ChangeNotifier {
   RouterRefreshStream(this._ref) {
-    _ref.listen(authNotifierProvider, (previous, next) {
-      // Only notify when auth STATUS changes (login/logout/verification)
-      // Don't notify when just user data changes (like profile update)
-      if (previous?.status != next.status) {
+    try {
+      _ref.listen(authNotifierProvider, (previous, next) {
+        // Only notify when auth STATUS changes (login/logout/verification)
+        // Don't notify when just user data changes (like profile update)
+        if (previous?.status != next.status) {
+          notifyListeners();
+        }
+      }, onError: (error, stack) {
+        debugPrint('Auth provider error: $error');
+        // Notify on error so router can redirect appropriately
         notifyListeners();
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('Failed to listen to auth provider: $e');
+    }
   }
 
   final Ref _ref;

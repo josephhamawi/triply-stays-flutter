@@ -699,20 +699,6 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               // Contact buttons row
               Row(
                 children: [
-                  // WhatsApp button (only if host has WhatsApp)
-                  if (listing.hostHasWhatsApp &&
-                      listing.hostPhone != null &&
-                      listing.hostPhone!.isNotEmpty) ...[
-                    Expanded(
-                      child: _ContactButton(
-                        icon: FontAwesomeIcons.whatsapp,
-                        label: 'WhatsApp',
-                        color: const Color(0xFF25D366),
-                        onTap: () => _openWhatsApp(listing),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
                   // Call button (only if host has phone)
                   if (listing.hostPhone != null &&
                       listing.hostPhone!.isNotEmpty) ...[
@@ -722,6 +708,16 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         label: 'Call',
                         color: AppColors.primaryOrange,
                         onTap: () => _makePhoneCall(listing),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // WhatsApp button (show when phone is available)
+                    Expanded(
+                      child: _ContactButton(
+                        icon: FontAwesomeIcons.whatsapp,
+                        label: 'WhatsApp',
+                        color: const Color(0xFF25D366),
+                        onTap: () => _openWhatsApp(listing),
                       ),
                     ),
                     const SizedBox(width: 8),
