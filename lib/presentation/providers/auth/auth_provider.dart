@@ -1,22 +1,19 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/firebase_auth_repository.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../../../main.dart' show firebaseInitialized;
 import 'auth_state.dart';
 
 /// Provider for AuthRepository
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  try {
-    return FirebaseAuthRepository();
-  } catch (e) {
-    debugPrint('Failed to create FirebaseAuthRepository: $e');
-    // Return a dummy repository that always returns unauthenticated
+  if (!firebaseInitialized) {
     return _NoOpAuthRepository();
   }
+  return FirebaseAuthRepository();
 });
 
 /// No-op auth repository for when Firebase isn't available
@@ -34,56 +31,41 @@ class _NoOpAuthRepository implements AuthRepository {
   Future<AuthResult<User>> signInWithEmailAndPassword({
     required String email,
     required String password,
-  }) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  }) async => AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta. Please update to stable iOS.'));
 
   @override
   Future<AuthResult<User>> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String displayName,
-  }) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  }) async => AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta. Please update to stable iOS.'));
 
   @override
-  Future<AuthResult<User>> signInWithGoogle() async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<User>> signInWithGoogle() async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta. Please update to stable iOS.'));
 
   @override
-  Future<AuthResult<User>> signInWithApple() async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<User>> signInWithApple() async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta. Please update to stable iOS.'));
 
   @override
-  Future<AuthResult<void>> signOut() async {
-    return AuthResult.success(null);
-  }
+  Future<AuthResult<void>> signOut() async => AuthResult.success(null);
 
   @override
-  Future<AuthResult<void>> sendPasswordResetEmail(String email) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<void>> sendPasswordResetEmail(String email) async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
-  Future<AuthResult<void>> sendEmailVerificationCode(String email) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<void>> sendEmailVerificationCode(String email) async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
-  Future<AuthResult<void>> verifyEmailCode({
-    required String email,
-    required String code,
-  }) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<void>> verifyEmailCode({required String email, required String code}) async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
-  Future<AuthResult<User>> reloadUser() async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  Future<AuthResult<User>> reloadUser() async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
   Future<AuthResult<User>> updateProfile({
@@ -93,22 +75,16 @@ class _NoOpAuthRepository implements AuthRepository {
     String? phoneNumber,
     bool? hasWhatsApp,
     String? photoUrl,
-  }) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  }) async => AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
   Future<AuthResult<void>> updatePassword({
     required String currentPassword,
     required String newPassword,
-  }) async {
-    return AuthResult.failure(const AuthFailure(message: 'Firebase is not available. Please restart the app.'));
-  }
+  }) async => AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
   @override
-  Future<bool> isEmailVerified(String userId) async {
-    return false;
-  }
+  Future<bool> isEmailVerified(String userId) async => false;
 }
 
 /// Provider for auth state changes stream
@@ -127,7 +103,6 @@ final currentUserProvider = Provider<User?>((ref) {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   StreamSubscription<User?>? _authStateSubscription;
-  bool _firebaseAvailable = true;
 
   AuthNotifier(this._authRepository) : super(const AuthState.initial()) {
     _init();
@@ -135,25 +110,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void _init() {
     state = const AuthState.loading();
-    try {
-      _authStateSubscription = _authRepository.authStateChanges.listen(
-        _onAuthStateChanged,
-        onError: (error) {
-          debugPrint('Auth stream error: $error');
-          _firebaseAvailable = false;
-          state = const AuthState.unauthenticated();
-        },
-      );
-    } catch (e) {
-      debugPrint('Failed to initialize auth: $e');
-      _firebaseAvailable = false;
-      // Firebase not available - set as unauthenticated so app can function
-      state = const AuthState.unauthenticated();
-    }
+    _authStateSubscription = _authRepository.authStateChanges.listen(
+      _onAuthStateChanged,
+      onError: (error) {
+        state = AuthState.error(error.toString());
+      },
+    );
   }
-
-  /// Check if Firebase is available
-  bool get isFirebaseAvailable => _firebaseAvailable;
 
   void _onAuthStateChanged(User? user) {
     if (user == null) {
