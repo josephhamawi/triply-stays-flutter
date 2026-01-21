@@ -1,12 +1,49 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/messaging_repository.dart';
+import '../../../data/repositories/noop_messaging_repository.dart';
 import '../../../domain/entities/conversation.dart';
 import '../../../domain/entities/message.dart';
+import '../../../main.dart' show firebaseInitialized;
 import '../auth/auth_provider.dart';
 
+/// Abstract interface for messaging repository (for NoOp support)
+abstract class MessagingRepositoryBase {
+  Stream<List<Conversation>> getConversationsStream(String userId);
+  Stream<List<Message>> getMessagesStream(String conversationId);
+  Stream<int> getTotalUnreadCountStream(String userId);
+  Future<Conversation?> getConversation(String conversationId);
+  Future<Conversation> getOrCreateConversation({
+    required String currentUserId,
+    required String currentUserName,
+    String? currentUserPhotoUrl,
+    required String otherUserId,
+    required String otherUserName,
+    String? otherUserPhotoUrl,
+    String? listingId,
+    String? listingTitle,
+    String? listingImageUrl,
+    required bool isCurrentUserHost,
+  });
+  Future<Message> sendMessage({
+    required String chatId,
+    required String senderId,
+    required String senderName,
+    String? senderPhotoUrl,
+    required String content,
+    MessageType type,
+  });
+  Future<void> markMessagesAsRead({required String chatId, required String userId});
+  Future<void> deleteConversation(String chatId, String userId);
+  Future<void> archiveConversation({required String chatId, required String userId});
+  Future<void> unarchiveConversation({required String chatId, required String userId});
+}
+
 /// Provider for MessagingRepository
-final messagingRepositoryProvider = Provider<MessagingRepository>((ref) {
+final messagingRepositoryProvider = Provider<MessagingRepositoryBase>((ref) {
+  if (!firebaseInitialized) {
+    return NoOpMessagingRepository();
+  }
   return MessagingRepository();
 });
 
@@ -50,7 +87,7 @@ final conversationProvider = FutureProvider.family<Conversation?, String>((ref, 
 
 /// State notifier for messaging actions
 class MessagingNotifier extends StateNotifier<AsyncValue<void>> {
-  final MessagingRepository _repository;
+  final MessagingRepositoryBase _repository;
   final Ref _ref;
 
   MessagingNotifier(this._repository, this._ref) : super(const AsyncValue.data(null));

@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/app_notification.dart';
+import '../../presentation/providers/notifications/notification_provider.dart';
 
 /// Repository for notification operations - syncs with web app's `notifications` collection
-class NotificationRepository {
+class NotificationRepository implements NotificationRepositoryBase {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Reference to notifications collection (same as web app)

@@ -17,7 +17,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 /// No-op auth repository for when Firebase isn't available
+/// This is used when Firebase fails to initialize (e.g., iOS beta compatibility issues)
 class _NoOpAuthRepository implements AuthRepository {
+  // Return a stream that emits null once - this signals unauthenticated state
+  // The UI should handle this gracefully and show appropriate messaging
   @override
   Stream<User?> get authStateChanges => Stream.value(null);
 

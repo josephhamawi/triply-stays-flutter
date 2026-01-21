@@ -4,12 +4,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/firebase_listing_repository.dart';
 import '../../../domain/entities/listing.dart';
 import '../../../domain/repositories/listing_repository.dart';
+import '../../../main.dart' show firebaseInitialized;
 import '../auth/auth_provider.dart';
 
 /// Provider for the listing repository
 final listingRepositoryProvider = Provider<ListingRepository>((ref) {
+  if (!firebaseInitialized) {
+    return _NoOpListingRepository();
+  }
   return FirebaseListingRepository(firestore: FirebaseFirestore.instance);
 });
+
+/// No-op listing repository for when Firebase isn't available
+class _NoOpListingRepository implements ListingRepository {
+  @override
+  Stream<List<Listing>> watchListings({ListingFilter? filter}) => Stream.value([]);
+
+  @override
+  Future<Listing?> getListingById(String id) async => null;
+
+  @override
+  Stream<List<Listing>> watchHostListings(String userId) => Stream.value([]);
+
+  @override
+  Future<void> toggleLike({
+    required String listingId,
+    required String userId,
+    required bool isLiked,
+  }) async {}
+
+  @override
+  Future<List<Listing>> getLikedListings(List<String> ids) async => [];
+
+  @override
+  Future<List<String>> getCategories() async => [];
+
+  @override
+  Future<List<String>> getViews() async => [];
+
+  @override
+  Future<List<String>> getAmenities() async => [];
+
+  @override
+  Future<List<String>> getCitiesForCountry(String countryCode) async => [];
+
+  @override
+  Future<String> createListing(Listing listing) async => '';
+
+  @override
+  Future<void> updateListing(Listing listing) async {}
+
+  @override
+  Future<void> incrementViews(String listingId) async {}
+}
 
 /// Provider for listing filters
 final listingFilterProvider = StateProvider<ListingFilter>((ref) {
@@ -57,6 +104,11 @@ final citiesProvider =
 
 /// Provider for user's liked listing IDs
 final likedListingIdsProvider = StreamProvider<List<String>>((ref) {
+  // Check if Firebase is available
+  if (!firebaseInitialized) {
+    return Stream.value([]);
+  }
+
   final authState = ref.watch(authNotifierProvider);
   if (authState.user == null) {
     return Stream.value([]);

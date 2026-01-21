@@ -2,10 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/conversation.dart';
 import '../../domain/entities/message.dart';
+import '../../presentation/providers/messaging/messaging_provider.dart';
 
 /// Repository for handling messaging functionality with Firestore
 /// Uses 'chats' collection for compatibility with web app
-class MessagingRepository {
+class MessagingRepository implements MessagingRepositoryBase {
   final FirebaseFirestore _firestore;
 
   MessagingRepository({FirebaseFirestore? firestore})

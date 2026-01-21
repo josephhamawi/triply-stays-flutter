@@ -9,12 +9,20 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../domain/entities/user_verifications.dart';
 import '../../../data/services/image_upload_service.dart';
+import '../../../main.dart' show firebaseInitialized;
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/auth/auth_state.dart';
 import '../../widgets/guest_prompt_dialog.dart';
 import 'host_pro_screen.dart';
 import 'login_security_screen.dart';
 import 'my_listings_screen.dart';
 import 'verifications_screen.dart';
+
+/// Get image upload service lazily (only when Firebase is available)
+ImageUploadService? _getImageUploadService() {
+  if (!firebaseInitialized) return null;
+  return ImageUploadService();
+}
 
 /// User profile screen with inline editing
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -26,7 +34,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _imageUploadService = ImageUploadService();
+  ImageUploadService? _imageUploadService;
 
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
@@ -225,19 +233,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.read(authNotifierProvider).user;
     if (user == null) return;
 
+    // Initialize image upload service lazily
+    _imageUploadService ??= _getImageUploadService();
+    if (_imageUploadService == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo upload unavailable on iOS beta'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isUploadingPhoto = true);
 
     try {
       final image = fromCamera
-          ? await _imageUploadService.takePhoto()
-          : await _imageUploadService.pickImage();
+          ? await _imageUploadService!.takePhoto()
+          : await _imageUploadService!.pickImage();
 
       if (image == null) {
         setState(() => _isUploadingPhoto = false);
         return;
       }
 
-      final photoUrl = await _imageUploadService.uploadProfilePhoto(
+      final photoUrl = await _imageUploadService!.uploadProfilePhoto(
         userId: user.id,
         image: image,
       );
@@ -291,10 +313,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (confirm != true) return;
 
+    // Initialize image upload service lazily
+    _imageUploadService ??= _getImageUploadService();
+    if (_imageUploadService == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo removal unavailable on iOS beta'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isUploadingPhoto = true);
 
     try {
-      await _imageUploadService.deleteProfilePhoto(user.id);
+      await _imageUploadService!.deleteProfilePhoto(user.id);
       final success = await ref.read(authNotifierProvider.notifier).updateProfile(
         photoUrl: '',
       );
@@ -326,8 +362,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
 
-    // Show guest profile screen
-    if (isGuest) {
+    // Show guest/unauthenticated profile screen when:
+    // 1. User explicitly chose guest mode
+    // 2. User is unauthenticated (not signed in)
+    // 3. No user data available (Firebase failed)
+    if (isGuest || authState.status == AuthStatus.unauthenticated || user == null) {
       return _buildGuestProfileScreen(context);
     }
 

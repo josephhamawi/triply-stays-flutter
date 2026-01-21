@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/user_verifications.dart';
+import '../../../main.dart' show firebaseInitialized;
 
 /// State for verification operations
 class VerificationState {
@@ -444,11 +445,74 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
 /// Provider for verification notifier
 final verificationNotifierProvider =
     StateNotifierProvider<VerificationNotifier, VerificationState>((ref) {
+  if (!firebaseInitialized) {
+    return _NoOpVerificationNotifier();
+  }
   return VerificationNotifier();
 });
 
+/// No-op verification notifier for when Firebase isn't available
+class _NoOpVerificationNotifier extends StateNotifier<VerificationState> implements VerificationNotifier {
+  _NoOpVerificationNotifier() : super(const VerificationState());
+
+  @override
+  FirebaseAuth get _auth => throw UnimplementedError();
+  @override
+  FirebaseFirestore get _firestore => throw UnimplementedError();
+  @override
+  FirebaseFunctions get _functions => throw UnimplementedError();
+  @override
+  FirebaseStorage get _storage => throw UnimplementedError();
+
+  @override
+  Future<bool> sendEmailVerificationCode(String email) async {
+    state = state.copyWith(errorMessage: 'Verification unavailable on iOS beta');
+    return false;
+  }
+
+  @override
+  Future<bool> verifyEmailCode(String email, String code) async {
+    state = state.copyWith(errorMessage: 'Verification unavailable on iOS beta');
+    return false;
+  }
+
+  @override
+  Future<bool> sendPhoneVerificationCode(String phone) async {
+    state = state.copyWith(errorMessage: 'Verification unavailable on iOS beta');
+    return false;
+  }
+
+  @override
+  Future<bool> verifyPhoneCode(String phone, String code) async {
+    state = state.copyWith(errorMessage: 'Verification unavailable on iOS beta');
+    return false;
+  }
+
+  @override
+  Future<bool> _verifyWithCredential(PhoneAuthCredential credential, String phone) async => false;
+
+  @override
+  Future<bool> submitIdentityVerification(String documentType, File documentFile) async {
+    state = state.copyWith(errorMessage: 'Verification unavailable on iOS beta');
+    return false;
+  }
+
+  @override
+  Future<UserVerifications?> getUserVerifications() async => null;
+
+  @override
+  void clearError() {
+    state = state.copyWith(errorMessage: null);
+  }
+}
+
 /// Provider for user verifications stream
 final userVerificationsStreamProvider = StreamProvider<UserVerifications?>((ref) {
+  // Check if Firebase is available
+  if (!firebaseInitialized) {
+    return Stream.value(null);
+  }
+
   final auth = FirebaseAuth.instance;
   final firestore = FirebaseFirestore.instance;
 

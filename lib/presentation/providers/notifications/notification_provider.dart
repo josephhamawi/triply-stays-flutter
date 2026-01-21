@@ -2,10 +2,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/notification_repository.dart';
 import '../../../domain/entities/app_notification.dart';
+import '../../../main.dart' show firebaseInitialized;
 import '../auth/auth_provider.dart';
 
+/// Abstract interface for notification repository
+abstract class NotificationRepositoryBase {
+  Stream<List<AppNotification>> getNotificationsStream(String userId);
+  Stream<int> getUnreadCountStream(String userId);
+  Future<void> markAsRead(String notificationId);
+  Future<void> markAllAsRead(String userId);
+  Future<void> deleteNotification(String notificationId);
+}
+
+/// No-op notification repository for when Firebase isn't available
+class _NoOpNotificationRepository implements NotificationRepositoryBase {
+  @override
+  Stream<List<AppNotification>> getNotificationsStream(String userId) => Stream.value([]);
+  @override
+  Stream<int> getUnreadCountStream(String userId) => Stream.value(0);
+  @override
+  Future<void> markAsRead(String notificationId) async {}
+  @override
+  Future<void> markAllAsRead(String userId) async {}
+  @override
+  Future<void> deleteNotification(String notificationId) async {}
+}
+
 /// Provider for NotificationRepository
-final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+final notificationRepositoryProvider = Provider<NotificationRepositoryBase>((ref) {
+  if (!firebaseInitialized) {
+    return _NoOpNotificationRepository();
+  }
   return NotificationRepository();
 });
 
@@ -37,7 +64,7 @@ final unreadNotificationCountProvider = StreamProvider<int>((ref) {
 
 /// State notifier for notification actions
 class NotificationNotifier extends StateNotifier<AsyncValue<void>> {
-  final NotificationRepository _repository;
+  final NotificationRepositoryBase _repository;
   final Ref _ref;
 
   NotificationNotifier(this._repository, this._ref)

@@ -3,32 +3,41 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/host_pro_status.dart';
+import '../../../main.dart' show firebaseInitialized;
 
 /// Provider for HostPro status
 class HostProNotifier extends StateNotifier<AsyncValue<HostProStatus>> {
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
+  final bool _firebaseAvailable;
 
   HostProNotifier({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
+  })  : _firebaseAvailable = firebaseInitialized,
+        _auth = firebaseInitialized ? (auth ?? FirebaseAuth.instance) : null,
+        _firestore = firebaseInitialized ? (firestore ?? FirebaseFirestore.instance) : null,
         super(const AsyncValue.loading());
 
   /// Evaluate HostPro status for current user
   Future<void> evaluateHostProStatus() async {
+    // Skip if Firebase not available
+    if (!_firebaseAvailable || _auth == null || _firestore == null) {
+      state = AsyncValue.data(HostProStatus.initial());
+      return;
+    }
+
     state = const AsyncValue.loading();
 
     try {
-      final user = _auth.currentUser;
+      final user = _auth!.currentUser;
       if (user == null) {
         state = AsyncValue.data(HostProStatus.initial());
         return;
       }
 
       // Get user document
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userDoc = await _firestore!.collection('users').doc(user.uid).get();
       final userData = userDoc.data();
 
       if (userData == null) {
@@ -54,7 +63,7 @@ class HostProNotifier extends StateNotifier<AsyncValue<HostProStatus>> {
       }
 
       // Get all listings by this user
-      final listingsQuery = await _firestore
+      final listingsQuery = await _firestore!
           .collection('listings')
           .where('hostId', isEqualTo: user.uid)
           .get();
@@ -105,7 +114,7 @@ class HostProNotifier extends StateNotifier<AsyncValue<HostProStatus>> {
           i + 10 > listingIds.length ? listingIds.length : i + 10,
         );
 
-        final reviewsQuery = await _firestore
+        final reviewsQuery = await _firestore!
             .collection('reviews')
             .where('listingId', whereIn: batch)
             .get();
