@@ -25,20 +25,10 @@ void main() async {
 
 Future<bool> _initializeFirebase() async {
   try {
-    // Race Firebase init against a timeout
-    final result = await Future.any([
-      Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
-          .then((_) => true),
-      Future.delayed(const Duration(seconds: 10), () => false),
-    ]);
-
-    if (result == true) {
-      debugPrint('Firebase initialized successfully');
-      return true;
-    } else {
-      debugPrint('Firebase initialization timed out');
-      return false;
-    }
+    // Initialize Firebase normally - no timeout needed for stable iOS
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('Firebase initialized successfully');
+    return true;
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
     return false;
