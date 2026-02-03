@@ -18,8 +18,7 @@ class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
+        'Web platform requires Firebase configuration. Run: flutterfire configure --platforms=web',
       );
     }
     switch (defaultTargetPlatform) {

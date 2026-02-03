@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/listing.dart';
 import '../../domain/repositories/listing_repository.dart';
@@ -22,6 +23,8 @@ class FirebaseListingRepository implements ListingRepository {
     Query query = _listingsRef.limit(200);
 
     return query.snapshots().map((snapshot) {
+      debugPrint('📦 Firestore returned ${snapshot.docs.length} listings');
+
       var listings = snapshot.docs.map((doc) {
         try {
           final data = doc.data() as Map<String, dynamic>;
@@ -30,15 +33,25 @@ class FirebaseListingRepository implements ListingRepository {
           final needsReview = data['needsReview'] as bool? ?? false;
           final verified = data['verified'] as bool?;
 
-          if (needsReview == true) return null;
-          if (verified == false) return null;
+          debugPrint('  Listing ${doc.id}: needsReview=$needsReview, verified=$verified');
+
+          if (needsReview == true) {
+            debugPrint('    ⏭️ Skipped: needsReview is true');
+            return null;
+          }
+          if (verified == false) {
+            debugPrint('    ⏭️ Skipped: verified is false');
+            return null;
+          }
 
           return ListingModel.fromFirestore(doc);
         } catch (e) {
-          // Log error but don't crash - skip this listing
+          debugPrint('    ❌ Error parsing listing: $e');
           return null;
         }
       }).whereType<ListingModel>().toList();
+
+      debugPrint('✅ ${listings.length} listings passed verification filter');
 
       // Sort by createdAt descending
       listings.sort((a, b) => b.createdAt.compareTo(a.createdAt));

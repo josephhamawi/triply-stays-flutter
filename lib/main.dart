@@ -27,10 +27,12 @@ Future<bool> _initializeFirebase() async {
   try {
     // Initialize Firebase normally - no timeout needed for stable iOS
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    debugPrint('Firebase initialized successfully');
+    debugPrint('✅ Firebase initialized successfully');
     return true;
-  } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+  } catch (e, stackTrace) {
+    debugPrint('❌ Firebase initialization failed: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // Show the error so we know what's happening
     return false;
   }
 }

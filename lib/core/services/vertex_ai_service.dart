@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 
 import 'ai_service.dart';
 
@@ -34,7 +34,7 @@ Guidelines:
 
     try {
       // Initialize chat model for general responses
-      _chatModel = FirebaseVertexAI.instance.generativeModel(
+      _chatModel = FirebaseAI.vertexAI().generativeModel(
         model: 'gemini-1.5-flash',
         systemInstruction: Content.system(_systemPrompt),
         generationConfig: GenerationConfig(
@@ -44,7 +44,7 @@ Guidelines:
       );
 
       // Initialize structured model for JSON responses
-      _structuredModel = FirebaseVertexAI.instance.generativeModel(
+      _structuredModel = FirebaseAI.vertexAI().generativeModel(
         model: 'gemini-1.5-flash',
         generationConfig: GenerationConfig(
           temperature: 0.2,
