@@ -55,6 +55,10 @@ class _NoOpAuthRepository implements AuthRepository {
   Future<AuthResult<void>> signOut() async => AuthResult.success(null);
 
   @override
+  Future<AuthResult<void>> deleteAccount() async =>
+      AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
+
+  @override
   Future<AuthResult<void>> sendPasswordResetEmail(String email) async =>
       AuthResult.failure(const AuthFailure(message: 'Firebase unavailable on iOS beta.'));
 
@@ -224,6 +228,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Continue as guest (browse-only mode)
   void continueAsGuest() {
     state = const AuthState.guest();
+  }
+
+  /// Delete account
+  Future<bool> deleteAccount() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final result = await _authRepository.deleteAccount();
+
+    return result.fold(
+      onSuccess: (_) {
+        state = const AuthState.unauthenticated();
+        return true;
+      },
+      onFailure: (failure) {
+        state = AuthState.error(failure.message, user: state.user);
+        return false;
+      },
+    );
   }
 
   /// Sign out

@@ -1595,7 +1595,7 @@ class _IdentityVerificationScreenState extends ConsumerState<_IdentityVerificati
                     Navigator.pop(context);
                     final image = await picker.pickImage(
                       source: ImageSource.camera,
-                      imageQuality: 80,
+                      imageQuality: 92,
                     );
                     if (image != null) {
                       setState(() => _documentFile = File(image.path));
@@ -1636,7 +1636,7 @@ class _IdentityVerificationScreenState extends ConsumerState<_IdentityVerificati
                     Navigator.pop(context);
                     final image = await picker.pickImage(
                       source: ImageSource.gallery,
-                      imageQuality: 80,
+                      imageQuality: 92,
                     );
                     if (image != null) {
                       setState(() => _documentFile = File(image.path));

@@ -27,11 +27,18 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
 class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   final PageController _imageController = PageController();
   int _currentImageIndex = 0;
+  bool _viewCounted = false;
 
   @override
   void dispose() {
     _imageController.dispose();
     super.dispose();
+  }
+
+  void _trackView() {
+    if (_viewCounted) return;
+    _viewCounted = true;
+    ref.read(listingRepositoryProvider).incrementViews(widget.listingId);
   }
 
   @override
@@ -46,6 +53,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
           if (listing == null) {
             return _buildNotFound();
           }
+          _trackView();
           return _buildContent(listing, isLiked);
         },
         loading: () => const Center(

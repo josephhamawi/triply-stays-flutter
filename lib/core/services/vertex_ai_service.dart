@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -87,10 +88,13 @@ Guidelines:
       // Create chat session with history
       final chat = _chatModel!.startChat(history: chatHistory);
 
-      // Send the prompt and get response
-      final response = await chat.sendMessage(Content.text(prompt));
+      // Send the prompt and get response (with timeout)
+      final response = await chat.sendMessage(Content.text(prompt))
+          .timeout(const Duration(seconds: 15));
 
       return response.text ?? 'I apologize, but I could not generate a response.';
+    } on TimeoutException {
+      throw Exception('AI response timed out. Please try again.');
     } catch (e) {
       throw Exception('Failed to generate AI response: $e');
     }
@@ -119,7 +123,7 @@ Only respond with the JSON object, no other text.
 
       final response = await _structuredModel!.generateContent([
         Content.text(fullPrompt),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
 
       final text = response.text ?? '{}';
 
@@ -134,6 +138,8 @@ Only respond with the JSON object, no other text.
         }
         return {};
       }
+    } on TimeoutException {
+      throw Exception('AI parsing timed out');
     } catch (e) {
       throw Exception('Failed to parse structured response: $e');
     }

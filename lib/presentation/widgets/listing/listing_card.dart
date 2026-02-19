@@ -106,129 +106,128 @@ class _ListingCardState extends ConsumerState<ListingCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image section with page indicator
-                Stack(
-                  children: [
-                    // Image carousel - fixed height with proper image fitting
-                    SizedBox(
-                      height: 220,
-                      width: double.infinity,
-                      child: images.isEmpty
-                          ? Container(
-                              color: AppColors.backgroundLight,
-                              child: const Icon(
-                                Icons.home_outlined,
-                                size: 64,
-                                color: AppColors.textLight,
+                // Image section with page indicator (Instagram-style aspect ratio)
+                AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Image carousel
+                      if (images.isEmpty)
+                        Container(
+                          color: AppColors.backgroundLight,
+                          child: const Icon(
+                            Icons.home_outlined,
+                            size: 64,
+                            color: AppColors.textLight,
+                          ),
+                        )
+                      else
+                        PageView.builder(
+                          controller: _pageController,
+                          itemCount: images.length,
+                          onPageChanged: (index) {
+                            setState(() => _currentImageIndex = index);
+                          },
+                          itemBuilder: (context, index) {
+                            final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+                            final cacheWidth = (MediaQuery.of(context).size.width * devicePixelRatio).toInt();
+                            return CachedNetworkImage(
+                              imageUrl: images[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              memCacheWidth: cacheWidth,
+                              fadeInDuration: const Duration(milliseconds: 150),
+                              fadeOutDuration: const Duration(milliseconds: 150),
+                              placeholder: (context, url) => Container(
+                                color: AppColors.backgroundLight,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primaryOrange,
+                                  ),
+                                ),
                               ),
-                            )
-                          : PageView.builder(
-                              controller: _pageController,
-                              itemCount: images.length,
-                              onPageChanged: (index) {
-                                setState(() => _currentImageIndex = index);
-                              },
-                              itemBuilder: (context, index) {
-                                // Calculate proper cache size based on device pixel ratio
-                                final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-                                final cacheWidth = (MediaQuery.of(context).size.width * devicePixelRatio).toInt();
-                                return CachedNetworkImage(
-                                  imageUrl: images[index],
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: 220,
-                                  memCacheWidth: cacheWidth,
-                                  memCacheHeight: (220 * devicePixelRatio).toInt(),
-                                  fadeInDuration: const Duration(milliseconds: 150),
-                                  fadeOutDuration: const Duration(milliseconds: 150),
-                                  placeholder: (context, url) => Container(
-                                    color: AppColors.backgroundLight,
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.primaryOrange,
-                                      ),
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      Container(
-                                    color: AppColors.backgroundLight,
-                                    child: const Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 48,
-                                      color: AppColors.textLight,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-
-                    // Like button with glass effect and likes count
-                    if (widget.showLikeButton)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: _GlassLikeButton(
-                          isLiked: isLiked,
-                          likesCount: widget.listing.likesCount,
-                          onTap: () {
-                            final isGuest = ref.read(isGuestProvider);
-                            if (isGuest) {
-                              GuestPromptDialog.show(
-                                context,
-                                message: 'Sign up to save your favorite properties.',
-                              );
-                            } else {
-                              ref.read(toggleLikeProvider(widget.listing.id))();
-                            }
+                              errorWidget: (context, url, error) =>
+                                  Container(
+                                color: AppColors.backgroundLight,
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 48,
+                                  color: AppColors.textLight,
+                                ),
+                              ),
+                            );
                           },
                         ),
-                      ),
 
-                    // Category badge
-                    if (widget.listing.category != null)
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: _GlassBadge(text: widget.listing.category!),
-                      ),
+                      // Like button with glass effect and likes count
+                      if (widget.showLikeButton)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: _GlassLikeButton(
+                            isLiked: isLiked,
+                            likesCount: widget.listing.likesCount,
+                            onTap: () {
+                              final isGuest = ref.read(isGuestProvider);
+                              if (isGuest) {
+                                GuestPromptDialog.show(
+                                  context,
+                                  message: 'Sign up to save your favorite properties.',
+                                );
+                              } else {
+                                ref.read(toggleLikeProvider(widget.listing.id))();
+                              }
+                            },
+                          ),
+                        ),
 
-                    // Page indicators
-                    if (images.length > 1)
-                      Positioned(
-                        bottom: 12,
-                        left: 0,
-                        right: 0,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            images.length,
-                            (index) => Container(
-                              width: 6,
-                              height: 6,
-                              margin: const EdgeInsets.symmetric(horizontal: 2),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: index == _currentImageIndex
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.5),
+                      // Category badge
+                      if (widget.listing.category != null)
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: _GlassBadge(text: widget.listing.category!),
+                        ),
+
+                      // Page indicators
+                      if (images.length > 1)
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              images.length,
+                              (index) => Container(
+                                width: 6,
+                                height: 6,
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: index == _currentImageIndex
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.5),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
 
-                    // Price badge
-                    Positioned(
-                      bottom: 12,
-                      right: 12,
-                      child: _GlassPriceBadge(
-                        price: widget.listing.price,
-                        weekendPrice: widget.listing.weekendPrice,
+                      // Price badge
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: _GlassPriceBadge(
+                          price: widget.listing.price,
+                          weekendPrice: widget.listing.weekendPrice,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 // Content section

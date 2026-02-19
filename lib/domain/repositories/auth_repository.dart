@@ -132,6 +132,9 @@ abstract class AuthRepository {
   /// Sign out the current user
   Future<AuthResult<void>> signOut();
 
+  /// Delete the current user's account
+  Future<AuthResult<void>> deleteAccount();
+
   /// Send email verification code
   Future<AuthResult<void>> sendEmailVerificationCode(String email);
 

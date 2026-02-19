@@ -19,9 +19,9 @@ class ImageUploadService {
   /// Returns list of XFile or empty list if cancelled
   Future<List<XFile>> pickImages({int maxImages = 10}) async {
     final List<XFile> images = await _picker.pickMultiImage(
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      imageQuality: 92,
     );
 
     // Limit to maxImages
@@ -35,9 +35,9 @@ class ImageUploadService {
   Future<XFile?> pickImage() async {
     return await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      imageQuality: 92,
     );
   }
 
@@ -45,9 +45,9 @@ class ImageUploadService {
   Future<XFile?> takePhoto() async {
     return await _picker.pickImage(
       source: ImageSource.camera,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      imageQuality: 92,
     );
   }
 

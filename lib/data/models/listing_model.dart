@@ -116,7 +116,7 @@ class ListingModel extends Listing {
       status: data['status'] ?? 'active',
       createdAt: createdAt,
       likesCount: _parseInt(data['likesCount']) ?? 0,
-      viewCount: _parseInt(data['viewCount']) ?? _parseInt(data['views']) ?? 0,
+      viewCount: _parseInt(data['viewCount']) ?? 0,
       averageRating: _parseDouble(data['averageRating']),
       reviewCount: _parseInt(data['reviewCount']) ?? 0,
     );

@@ -101,8 +101,65 @@ User question: $message
 
       return response;
     } catch (e) {
-      return 'I apologize, but I encountered an error. Please try again.';
+      // Fall back to local smart responses when AI service fails
+      return _generateLocalResponse(message, listingContext);
     }
+  }
+
+  /// Generate a helpful response locally when AI service is unavailable
+  String _generateLocalResponse(String message, String? listingContext) {
+    final msg = message.toLowerCase();
+
+    // Property-specific context
+    if (listingContext != null) {
+      if (msg.contains('price') || msg.contains('cost') || msg.contains('how much')) {
+        return 'You can find the pricing details on the property listing page. Prices may vary between weekdays and weekends. Feel free to message the host directly for special rates or longer stay discounts!';
+      }
+      if (msg.contains('book') || msg.contains('reserve') || msg.contains('available')) {
+        return 'To book this property, you can contact the host directly through the listing page using the Call, WhatsApp, or Message buttons. They\'ll confirm availability for your dates!';
+      }
+      if (msg.contains('amenit') || msg.contains('wifi') || msg.contains('pool') || msg.contains('parking')) {
+        return 'You can find the full list of amenities on the property listing page. If you need specific details, I recommend messaging the host directly - they\'re usually very responsive!';
+      }
+    }
+
+    // Best time to visit
+    if (msg.contains('best time') || msg.contains('when to visit') || msg.contains('season')) {
+      return 'Lebanon is beautiful year-round! **Summer (June-September)** is perfect for beach towns like Batroun, Byblos, and Tyre. **Winter (December-March)** is ideal for skiing in the Cedars and Faraya. **Spring and Fall** offer mild weather, great for exploring Beirut, the Chouf, and mountain villages. Each season has its own charm!';
+    }
+
+    // Family recommendations
+    if (msg.contains('family') || msg.contains('kid') || msg.contains('children')) {
+      return 'For family-friendly stays, I recommend:\n\n- **Byblos/Jbeil** - Beautiful beaches with calm waters, historical sites kids love\n- **Faraya/Faqra** - Mountain resorts with activities for all ages\n- **Batroun** - Charming coastal town with family-friendly restaurants\n- **Broummana** - Cool mountain air with parks and entertainment\n\nLook for properties with pools, gardens, and multiple bedrooms for the best family experience!';
+    }
+
+    // Budget tips
+    if (msg.contains('budget') || msg.contains('cheap') || msg.contains('afford') || msg.contains('save')) {
+      return 'Here are some budget tips for vacation rentals in Lebanon:\n\n- **Book weekdays** - many properties offer lower weekday rates\n- **Stay longer** - hosts often give discounts for weekly or monthly stays\n- **Try mountain towns** - often more affordable than popular beach areas\n- **Off-season deals** - visit beach towns in spring/fall for lower prices\n- **Message hosts directly** - you can often negotiate better rates\n\nUse the Search feature to filter by your budget!';
+    }
+
+    // Location questions
+    if (msg.contains('where') || msg.contains('location') || msg.contains('area') || msg.contains('region')) {
+      return 'Lebanon has amazing regions to explore:\n\n- **Beirut** - Vibrant nightlife, restaurants, and culture\n- **North** - Batroun, Byblos, Tripoli - coastal charm\n- **Mount Lebanon** - Broummana, Faraya, Bhamdoun - mountain retreats\n- **South** - Tyre, Sidon - historic cities and beaches\n- **Bekaa** - Baalbek, Zahle - wine country and ruins\n\nWhat kind of experience are you looking for?';
+    }
+
+    // Safety
+    if (msg.contains('safe') || msg.contains('security') || msg.contains('danger')) {
+      return 'Lebanon is generally welcoming to tourists. Here are some tips:\n\n- Most tourist areas are very safe\n- People are incredibly hospitable and helpful\n- Always verify property details with the host before booking\n- Use the in-app messaging to communicate with hosts\n- Keep emergency contacts handy\n\nFeel free to ask about specific areas you\'re interested in!';
+    }
+
+    // Greetings
+    if (msg.contains('hello') || msg.contains('hi') || msg.contains('hey') || msg.contains('help')) {
+      return 'Hi there! I\'m Triply, your travel assistant for Lebanon. I can help you with:\n\n- **Finding properties** - Use the Search tab to describe what you\'re looking for\n- **Travel tips** - Ask me about the best times to visit, regions, and budget advice\n- **Property questions** - I can guide you on how to book and contact hosts\n\nWhat would you like to know?';
+    }
+
+    // Food / restaurants
+    if (msg.contains('food') || msg.contains('restaurant') || msg.contains('eat') || msg.contains('cuisine')) {
+      return 'Lebanese cuisine is world-renowned! Each region has specialties:\n\n- **Beirut** - Fine dining, street food, international cuisine\n- **Batroun** - Fresh seafood by the sea\n- **Zahle** - Famous for its riverside restaurants and arak\n- **Mountain villages** - Traditional Lebanese mezze\n\nMany of our listed properties have full kitchens too, perfect for cooking with fresh local ingredients from nearby markets!';
+    }
+
+    // Default helpful response
+    return 'Thanks for your question! While I work best with specific topics like:\n\n- **Travel timing** - "Best time to visit Lebanon?"\n- **Destinations** - "Where should I stay for beaches?"\n- **Budget help** - "Tips for affordable stays"\n- **Family travel** - "Family-friendly recommendations"\n\nYou can also use the **Search** tab to find properties by describing what you want, like "Beach villa with pool" or "Mountain cabin for family".\n\nHow can I help you today?';
   }
 
   @override

@@ -94,12 +94,28 @@ class FirebaseListingRepository implements ListingRepository {
             listings.where((l) => l.maxGuests >= filter!.minGuests!).toList();
       }
       if (filter?.searchQuery != null && filter!.searchQuery!.isNotEmpty) {
-        final q = filter.searchQuery!.toLowerCase();
-        listings = listings.where((l) {
-          return l.title.toLowerCase().contains(q) ||
-              l.description.toLowerCase().contains(q) ||
-              l.city.toLowerCase().contains(q);
-        }).toList();
+        // Split into words and filter out stop words for better matching
+        const stopWords = {'the', 'a', 'an', 'and', 'or', 'for', 'with', 'in', 'on', 'at', 'to', 'of', 'is', 'my', 'me'};
+        final words = filter.searchQuery!.toLowerCase()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.length > 1 && !stopWords.contains(w))
+            .toList();
+
+        if (words.isNotEmpty) {
+          listings = listings.where((l) {
+            final searchable = '${l.title} ${l.description} ${l.city} ${l.category ?? ''} ${l.amenities.join(' ')} ${l.listingViews.join(' ')}'.toLowerCase();
+            return words.any((word) => searchable.contains(word));
+          }).toList();
+
+          // Sort by relevance (more matching words = higher rank)
+          listings.sort((a, b) {
+            final aText = '${a.title} ${a.city} ${a.category ?? ''} ${a.amenities.join(' ')}'.toLowerCase();
+            final bText = '${b.title} ${b.city} ${b.category ?? ''} ${b.amenities.join(' ')}'.toLowerCase();
+            final aScore = words.where((w) => aText.contains(w)).length;
+            final bScore = words.where((w) => bText.contains(w)).length;
+            return bScore.compareTo(aScore);
+          });
+        }
       }
 
       // Sort client-side
@@ -227,13 +243,15 @@ class FirebaseListingRepository implements ListingRepository {
       // Return default views if settings not found
     }
     return [
-      'Mountain',
       'Sea',
+      'Mountain',
       'City',
       'Garden',
       'Pool',
+      'Valley',
       'Lake',
       'Forest',
+      'Beach',
     ];
   }
 

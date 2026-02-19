@@ -244,6 +244,127 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthResult<void>> deleteAccount() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        return AuthResult.failure(const AuthFailure(
+          message: 'No user is currently signed in.',
+        ));
+      }
+
+      final uid = user.uid;
+
+      // Delete all user-related data from Firestore
+      await _deleteAllUserData(uid);
+
+      // Sign out from Google if signed in
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.signOut();
+      }
+
+      // Delete the Firebase Auth user
+      await user.delete();
+
+      return AuthResult.success(null);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return AuthResult.failure(const AuthFailure(
+          message: 'Please sign out and sign in again before deleting your account.',
+          code: 'requires-recent-login',
+        ));
+      }
+      return AuthResult.failure(_mapFirebaseAuthException(e));
+    } catch (e) {
+      return AuthResult.failure(AuthFailure(
+        message: e.toString(),
+        originalError: e,
+      ));
+    }
+  }
+
+  /// Delete all traces of user data across all Firestore collections
+  Future<void> _deleteAllUserData(String uid) async {
+    // Delete user's listings
+    try {
+      final listings = await _firestore
+          .collection('listings')
+          .where('hostId', isEqualTo: uid)
+          .get();
+      for (final doc in listings.docs) {
+        // Delete reviews subcollection
+        final reviews = await doc.reference.collection('reviews').get();
+        for (final review in reviews.docs) {
+          await review.reference.delete();
+        }
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+
+    // Delete user's AI chat conversations and their messages
+    try {
+      final aiChats = await _firestore
+          .collection('aiChats')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (final doc in aiChats.docs) {
+        final messages = await doc.reference.collection('messages').get();
+        for (final msg in messages.docs) {
+          await msg.reference.delete();
+        }
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+
+    // Delete user's messaging conversations (as host or guest)
+    try {
+      final hostChats = await _firestore
+          .collection('chats')
+          .where('hostId', isEqualTo: uid)
+          .get();
+      final guestChats = await _firestore
+          .collection('chats')
+          .where('guestId', isEqualTo: uid)
+          .get();
+      final allChatDocs = {...{for (var d in hostChats.docs) d.id: d}, ...{for (var d in guestChats.docs) d.id: d}};
+      for (final doc in allChatDocs.values) {
+        final messages = await doc.reference.collection('messages').get();
+        for (final msg in messages.docs) {
+          await msg.reference.delete();
+        }
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+
+    // Delete user's notifications
+    try {
+      final notifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (final doc in notifications.docs) {
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+
+    // Delete conversation analytics
+    try {
+      final analytics = await _firestore
+          .collection('conversationAnalytics')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (final doc in analytics.docs) {
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+
+    // Delete user profile document
+    try {
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (_) {}
+  }
+
+  @override
   Future<AuthResult<void>> sendEmailVerificationCode(String email) async {
     try {
       final callable = _functions.httpsCallable('sendEmailVerification');

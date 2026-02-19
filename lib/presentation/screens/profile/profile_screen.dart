@@ -734,6 +734,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ]),
                   const SizedBox(height: 24),
+                  _buildDeleteAccountButton(context, ref),
+                  const SizedBox(height: 12),
                   _buildSignOutButton(context, ref),
                   const SizedBox(height: 120),
                 ]),
@@ -951,6 +953,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDeleteAccountButton(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.delete_forever, color: AppColors.error),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(fontSize: 16, color: AppColors.error, fontWeight: FontWeight.w500),
+        ),
+        onTap: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Delete Account'),
+              content: const Text(
+                'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmed == true && context.mounted) {
+            final success = await ref.read(authNotifierProvider.notifier).deleteAccount();
+            if (!success && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Failed to delete account. Please try again.'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+      ),
     );
   }
 

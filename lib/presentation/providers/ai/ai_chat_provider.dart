@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/ai_chat_message.dart';
@@ -53,6 +56,8 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
 
   /// Initialize or resume a chat conversation
   Future<void> initChat({String? listingId}) async {
+    if (state.conversationId != null && !state.isInitializing) return;
+
     final authState = _ref.read(authNotifierProvider);
     if (authState.user == null) {
       state = state.copyWith(error: 'Please sign in to use the AI assistant');
@@ -64,11 +69,11 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
     try {
       final aiRepository = _ref.read(aiRepositoryProvider);
 
-      // Get or create conversation
+      // Get or create conversation (with timeout to prevent hanging)
       final conversationId = await aiRepository.getOrCreateConversation(
         userId: authState.user!.id,
         listingId: listingId,
-      );
+      ).timeout(const Duration(seconds: 8));
 
       state = state.copyWith(
         conversationId: conversationId,
@@ -86,8 +91,11 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
       // Start watching chat history
       _watchChatHistory(conversationId);
     } catch (e) {
+      // Fall back to a local-only conversation so chat still works
+      debugPrint('Chat init failed, using local mode: $e');
+      final localId = 'local_${DateTime.now().millisecondsSinceEpoch}';
       state = state.copyWith(
-        error: 'Failed to initialize chat: ${e.toString()}',
+        conversationId: localId,
         isInitializing: false,
       );
     }
@@ -131,8 +139,13 @@ class AIChatNotifier extends StateNotifier<AIChatState> {
     try {
       final aiRepository = _ref.read(aiRepositoryProvider);
 
-      // Save user message
-      await aiRepository.saveChatMessage(userMessage);
+      // Try to save user message to Firestore (non-blocking if it fails)
+      try {
+        await aiRepository.saveChatMessage(userMessage)
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        debugPrint('Failed to persist user message, continuing in local mode');
+      }
 
       // Build listing context string if available
       String? listingContextStr;
@@ -151,13 +164,13 @@ Description: ${listing.description}
 ''';
       }
 
-      // Get AI response
+      // Get AI response (with timeout)
       final response = await aiRepository.sendChatMessage(
         conversationId: conversationId,
         message: message.trim(),
-        history: state.messages.take(10).toList(), // Keep context manageable
+        history: state.messages.take(10).toList(),
         listingContext: listingContextStr,
-      );
+      ).timeout(const Duration(seconds: 20));
 
       // Create assistant message
       final assistantMessage = AIChatMessage.assistant(
@@ -166,16 +179,34 @@ Description: ${listing.description}
         listingIds: state.listingContext != null ? [state.listingContext!.id] : [],
       );
 
-      // Save assistant message
-      await aiRepository.saveChatMessage(assistantMessage);
+      // Try to save assistant message (non-blocking if it fails)
+      try {
+        await aiRepository.saveChatMessage(assistantMessage)
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        debugPrint('Failed to persist assistant message');
+      }
 
       state = state.copyWith(
         messages: [...state.messages, assistantMessage],
         isLoading: false,
       );
-    } catch (e) {
+    } on TimeoutException {
+      final fallback = AIChatMessage.assistant(
+        conversationId: conversationId,
+        content: 'I\'m having trouble connecting right now. Please check your internet connection and try again.',
+      );
       state = state.copyWith(
-        error: 'Failed to send message: ${e.toString()}',
+        messages: [...state.messages, fallback],
+        isLoading: false,
+      );
+    } catch (e) {
+      final fallback = AIChatMessage.assistant(
+        conversationId: conversationId,
+        content: 'I encountered an issue processing your request. Please try again in a moment.',
+      );
+      state = state.copyWith(
+        messages: [...state.messages, fallback],
         isLoading: false,
       );
     }

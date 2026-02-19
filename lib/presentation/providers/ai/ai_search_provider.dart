@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/listing.dart';
@@ -70,19 +72,32 @@ class AISearchNotifier extends StateNotifier<AISearchState> {
 
     try {
       final aiRepository = _ref.read(aiRepositoryProvider);
+      final listingRepository = _ref.read(listingRepositoryProvider);
 
-      // Parse the search query with AI
-      final intent = await aiRepository.parseSearchQuery(query);
+      // Try AI parsing with timeout, fall back to text search if it fails
+      SearchIntent intent;
+      bool usedAI = false;
+      try {
+        intent = await aiRepository.parseSearchQuery(query)
+            .timeout(const Duration(seconds: 8));
+        if (intent.hasFilters) {
+          usedAI = true;
+        }
+      } on TimeoutException {
+        intent = SearchIntent(originalQuery: query, confidence: 0.0);
+      } catch (_) {
+        intent = SearchIntent(originalQuery: query, confidence: 0.0);
+      }
 
       state = state.copyWith(
-        intent: intent,
+        intent: usedAI ? intent : null,
         isParsingIntent: false,
-        usedAI: true,
+        usedAI: usedAI,
+        clearIntent: !usedAI,
       );
 
       // Convert intent to filter and fetch results
       final filter = intent.toListingFilter();
-      final listingRepository = _ref.read(listingRepositoryProvider);
 
       // Get listings stream and convert to list
       final listingsStream = listingRepository.watchListings(filter: filter);
