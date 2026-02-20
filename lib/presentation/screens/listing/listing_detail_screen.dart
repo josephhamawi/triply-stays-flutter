@@ -27,7 +27,10 @@ class ListingDetailScreen extends ConsumerStatefulWidget {
 class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   final PageController _imageController = PageController();
   int _currentImageIndex = 0;
-  bool _viewCounted = false;
+
+  /// Session-level tracking of viewed listings (matches web app's sessionStorage behavior).
+  /// Resets when the app is restarted, just like sessionStorage resets on tab close.
+  static final Set<String> _viewedListings = {};
 
   @override
   void dispose() {
@@ -36,8 +39,8 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   }
 
   void _trackView() {
-    if (_viewCounted) return;
-    _viewCounted = true;
+    if (_viewedListings.contains(widget.listingId)) return;
+    _viewedListings.add(widget.listingId);
     ref.read(listingRepositoryProvider).incrementViews(widget.listingId);
   }
 
